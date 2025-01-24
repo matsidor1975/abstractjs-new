@@ -1,6 +1,6 @@
 {
   "name": "@biconomy/abstractjs",
-  "version": "0.0.33",
+  "version": "0.0.34",
   "author": "Biconomy",
   "repository": "github:bcnmy/abstractjs",
   "main": "./dist/_cjs/index.js",
@@ -100,7 +100,7 @@
     "build": "bun run clean && bun run build:cjs && bun run build:esm && bun run build:types",
     "clean": "rimraf ./dist/_esm ./dist/_cjs ./dist/_types ./dist/tsconfig",
     "test": "vitest run -c ./src/test/vitest.config.ts",
-    "test:watch": "bun run test dev",
+    "test:watch": "vitest --watch -c ./src/test/vitest.config.ts",
     "playground": "RUN_PLAYGROUND=true vitest -c ./src/test/vitest.config.ts -t=playground",
     "playground:watch": "RUN_PLAYGROUND=true bun run test -t=playground --watch",
     "fetch:tokenMap": "bun run scripts/fetch:tokenMap.ts && bun run lint:fix",
