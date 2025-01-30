@@ -1179,3 +1179,4 @@
 2025-03-21 15:02:25 improve logging format
 2025-12-03 18:17:44 upgrade dependencies
 2025-11-01 10:02:13 fix type error
+2025-01-30 09:15:54 fix CI errors
