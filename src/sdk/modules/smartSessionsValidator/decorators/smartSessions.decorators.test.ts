@@ -120,7 +120,7 @@ describe("modules.smartSessions.decorators", async () => {
       signer: sessionKeyAccount
     })
 
-    const smartSessionNexusClient = await createSmartAccountClient({
+    const smartSessionNexusClient = createSmartAccountClient({
       account: await toNexusAccount({
         chain,
         signer: sessionKeyAccount,

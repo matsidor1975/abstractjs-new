@@ -47,10 +47,10 @@ const quote = await meeClient.getQuote({
     calls: [{ to: "0x...", value: 1n, gasLimit: 100000n }],
     chainId: base.id
   }],
-  feeToken: toFeeToken({
-    mcToken: mcUSDC,
+  feeToken: {
+    address: mcUSDC.addressOn(base.id),
     chainId: base.id
-  })
+  }
 })
 
 // Execute the quote and get back a transaction hash

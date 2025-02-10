@@ -4,7 +4,20 @@
 
 ### Patch Changes
 
-- Fusion support
+- Added Fusion support
+  - BREAKING: `createSmartAccountClient` now requires an explicit account instance instead of account parameters
+  - BREAKING: Removed `executeSignedFusionQuote` helper
+  - BREAKING: `toMultichainNexusAccount` now requires an explicit `transports` parameter, to encourate the use of paid RPCs
+  - Made `createSmartAccountClient` an alias of `createBicoBundlerClient`
+  - Added / modified MEE client methods:
+    - getFusionQuote
+    - executeFusionQuote
+    - signFusionQuote
+  - Additional transaction types:
+    - Transfer
+    - TransferFrom
+    - Approve
+    - Withdrawal
 
 ## 0.0.37
 
