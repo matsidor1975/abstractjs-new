@@ -222,7 +222,8 @@ describe("mee.createMeeClient", async () => {
       })
       const superTransactionReceipt =
         await meeClient.waitForSupertransactionReceipt({
-          hash: executeSignedQuoteResponse.hash
+          hash: executeSignedQuoteResponse.hash,
+          confirmations: 3
         })
       expect(superTransactionReceipt.explorerLinks.length).toBeGreaterThan(0)
       expect(isHex(executeSignedQuoteResponse.hash)).toBe(true)

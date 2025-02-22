@@ -103,6 +103,16 @@ export const TEST_CONTRACTS: Record<
     chainId: baseSepolia.id,
     name: "MockSignatureValidator",
     address: "0x0d0C730F50a6da2725d4CD4eb91Bc678Bd377F7D"
+  },
+  NexusBootstrap: {
+    chainId: baseSepolia.id,
+    name: "NexusBootstrap",
+    address: NEXUS_BOOTSTRAP_ADDRESS
+  },
+  NexusAccountFactory: {
+    chainId: baseSepolia.id,
+    name: "NexusAccountFactory",
+    address: NEXUS_ACCOUNT_FACTORY
   }
 }
 

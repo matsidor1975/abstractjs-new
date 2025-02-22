@@ -10,7 +10,7 @@ import {
   parseUnits
 } from "viem"
 import { afterAll, beforeAll, describe, expect, test } from "vitest"
-import { toNetworks } from "../../test/testSetup"
+import { paymasterTruthy, toNetworks } from "../../test/testSetup"
 import { getBalance, killNetwork } from "../../test/testUtils"
 import type { NetworkConfig } from "../../test/testUtils"
 import { type NexusAccount, toNexusAccount } from "../account/toNexusAccount"
@@ -26,8 +26,7 @@ import {
 } from "./createBicoPaymasterClient"
 
 // NB These tests require ERC20 tokens to be available on testnet, so they are mostly skipped
-describe("bico.paymaster", async () => {
-  // describe.runIf(paymasterTruthy())("bico.paymaster", async () => {
+describe.skipIf(!paymasterTruthy())("bico.paymaster", async () => {
   let network: NetworkConfig
 
   let chain: Chain

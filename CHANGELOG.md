@@ -1,5 +1,11 @@
 # @biconomy/abstractjs
 
+## 0.1.0
+
+### Minor Changes
+
+- Update BICONOMY_ATTESTER address, resulting in changed default addresses for users
+
 ## 0.0.41
 
 ### Patch Changes
