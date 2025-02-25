@@ -43,8 +43,6 @@ import {
   createSmartAccountClient
 } from "../clients/createBicoBundlerClient"
 import {
-  BICONOMY_ATTESTER_ADDRESS,
-  MAINNET_ADDRESS_K1_VALIDATOR_FACTORY_ADDRESS,
   TEST_ADDRESS_K1_VALIDATOR_ADDRESS,
   TEST_ADDRESS_K1_VALIDATOR_FACTORY_ADDRESS
 } from "../constants"

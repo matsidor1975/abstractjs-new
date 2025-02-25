@@ -181,7 +181,6 @@ describe("mee.createMeeClient", async () => {
       const receipt = await meeClient.waitForSupertransactionReceipt({
         hash
       })
-      console.timeEnd("executeQuote:receiptTimer")
       expect(receipt).toBeDefined()
     }
   )
@@ -195,16 +194,9 @@ describe("mee.createMeeClient", async () => {
         amount: 1n
       }
 
-      const sender = mcNexus.signer.address
-      const { address: recipient } = mcNexus.deploymentOn(optimism.id, true)
-
       const fusionQuote = await meeClient.getOnChainQuote({
         trigger,
         instructions: [
-          mcNexus.build({
-            type: "transferFrom",
-            data: { ...trigger, sender, recipient }
-          }),
           mcNexus.build({
             type: "transfer",
             data: {
