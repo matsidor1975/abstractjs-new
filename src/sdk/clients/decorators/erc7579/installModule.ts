@@ -8,8 +8,8 @@ import {
   getAddress
 } from "viem"
 import {
-  type GetSmartAccountParameter,
   type SmartAccount,
+  type UserOperation,
   sendUserOperation
 } from "viem/account-abstraction"
 import { getAction, parseAccount } from "viem/utils"
@@ -26,12 +26,12 @@ import { parseModuleTypeId } from "./supportsModule"
 
 export type InstallModuleParameters<
   TSmartAccount extends SmartAccount | undefined
-> = GetSmartAccountParameter<TSmartAccount> & {
+> = { account?: TSmartAccount } & {
   module: ModuleMeta
   maxFeePerGas?: bigint
   maxPriorityFeePerGas?: bigint
   nonce?: bigint
-}
+} & Partial<Omit<UserOperation<"0.7", bigint>, "callData">>
 
 /**
  * Installs a module on a given smart account.
@@ -64,7 +64,9 @@ export async function installModule<
     maxFeePerGas,
     maxPriorityFeePerGas,
     nonce,
-    module: { address, initData, type }
+    module,
+    module: { address, initData, type },
+    ...rest
   } = parameters
 
   if (!account_) {
@@ -159,15 +161,18 @@ export async function installModule<
     }
   }
 
-  return getAction(
-    client,
-    sendUserOperation,
-    "sendUserOperation"
-  )({
+  const sendUserOperationParams = {
     calls,
     maxFeePerGas,
     maxPriorityFeePerGas,
     nonce,
-    account
-  })
+    account,
+    ...rest
+  }
+
+  return getAction(
+    client,
+    sendUserOperation,
+    "sendUserOperation"
+  )(sendUserOperationParams)
 }
