@@ -69,7 +69,7 @@ describe("mee.toMultiChainNexusAccount", async () => {
   })
 
   test("should handle empty chains array", async () => {
-    expect(() =>
+    await expect(
       toMultichainNexusAccount({
         signer: eoaAccount,
         chains: [],

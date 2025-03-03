@@ -72,7 +72,7 @@ describe("mee.createMeeClient", async () => {
         index
       })
 
-      expect(() =>
+      await expect(
         createMeeClient({
           account: invalidMcNexus
         })
@@ -177,7 +177,6 @@ describe("mee.createMeeClient", async () => {
       // This sends the transaction to the network
       const { hash } = await meeClient.executeQuote({ quote })
       expect(hash).toBeDefined()
-      console.timeEnd("executeQuote:hashTimer")
       const receipt = await meeClient.waitForSupertransactionReceipt({
         hash
       })

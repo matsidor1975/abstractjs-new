@@ -82,8 +82,8 @@ describe("mee.getInfo", () => {
     expect(result.paymentTokens[0].symbol).toBe("ETH")
   })
 
-  test("should throw error for invalid chain id", () => {
-    expect(() =>
+  test("should throw error for invalid chain id", async () => {
+    await expect(
       getGasToken(meeClient, {
         chainId: 999,
         address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
@@ -105,8 +105,8 @@ describe("mee.getInfo", () => {
     ).toBe(true)
   })
 
-  test("should throw error for invalid address", () => {
-    expect(() =>
+  test("should throw error for invalid address", async () => {
+    await expect(
       getPaymentToken(meeClient, {
         chainId: 1,
         tokenAddress: "0x1234567890123456789012345678901234567890"
@@ -116,8 +116,8 @@ describe("mee.getInfo", () => {
     )
   })
 
-  test("should throw error for invalid chain id", () => {
-    expect(() =>
+  test("should throw error for invalid chain id", async () => {
+    await expect(
       getPaymentToken(meeClient, {
         chainId: 999,
         tokenAddress: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"

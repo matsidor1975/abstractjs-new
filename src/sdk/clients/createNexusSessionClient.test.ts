@@ -283,7 +283,7 @@ describe("nexus.session.client", async () => {
     // @note this should fail as session signer is not allowed to send this action
     // @note session signer is only allowed to call incrementNumber
 
-    expect(
+    await expect(
       useSmartSessionNexusClient.usePermission({
         calls: [
           {

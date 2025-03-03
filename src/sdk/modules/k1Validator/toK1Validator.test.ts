@@ -138,27 +138,27 @@ describe("modules.k1Validator", async () => {
 
       const deInitData = encodePacked(["address"], [eoaAccount.address])
 
-      const hashUninstall = nexusClient.uninstallModule({
-        module: {
-          address: TEST_ADDRESS_K1_VALIDATOR_ADDRESS,
-          type: "validator",
-          deInitData
-        }
-      })
-
-      expect(hashUninstall).rejects.toThrow()
+      await expect(
+        nexusClient.uninstallModule({
+          module: {
+            address: TEST_ADDRESS_K1_VALIDATOR_ADDRESS,
+            type: "validator",
+            deInitData
+          }
+        })
+      ).rejects.toThrow()
     } else {
       const deInitData = encodePacked(["address"], [eoaAccount.address])
 
-      const hashUninstall = nexusClient.uninstallModule({
-        module: {
-          address: TEST_ADDRESS_K1_VALIDATOR_ADDRESS,
-          type: "validator",
-          deInitData
-        }
-      })
-
-      expect(hashUninstall).rejects.toThrow()
+      await expect(
+        nexusClient.uninstallModule({
+          module: {
+            address: TEST_ADDRESS_K1_VALIDATOR_ADDRESS,
+            type: "validator",
+            deInitData
+          }
+        })
+      ).rejects.toThrow()
     }
   })
 })

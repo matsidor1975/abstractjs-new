@@ -31,7 +31,7 @@ jobs:
           MAINNET_CHAIN_ID: 10
 
       - name: Run the tests
-        run: bun run test
+        run: bun run coverage
         env:
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
           PRIVATE_KEY_TWO: ${{ secrets.PRIVATE_KEY_TWO }}
@@ -39,8 +39,17 @@ jobs:
           PAYMASTER_URL: ${{ secrets.PAYMASTER_URL }}
           BUNDLER_URL: ${{ secrets.BUNDLER_URL }}
           ALCHEMY_API_KEY: ${{ secrets.ALCHEMY_API_KEY }}
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
           TESTNET_CHAIN_ID: 84532
           MAINNET_CHAIN_ID: 10
           RUN_PAID_TESTS: true
           CI: true 
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+      
+      
+      
 

@@ -5,7 +5,7 @@ export default defineConfig({
   test: {
     coverage: {
       all: false,
-      provider: "v8",
+      provider: "istanbul",
       reporter: process.env.CI
         ? ["json-summary", "json"]
         : ["text", "json", "html"],
@@ -14,10 +14,8 @@ export default defineConfig({
         "**/_cjs/**",
         "**/_esm/**",
         "**/_types/**",
-        "**/*.test.ts",
         "**/test/**"
       ],
-      include: ["./src/test/**/*.test.ts", "./src/sdk/**/*.test.ts"],
       thresholds: {
         lines: 80,
         functions: 50,

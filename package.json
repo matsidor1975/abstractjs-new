@@ -15,11 +15,12 @@
     "@ethersproject/providers": "^5.7.2",
     "@ethersproject/wallet": "^5.7.0",
     "@pimlico/alto": "^0.0.4",
+    "@rhinestone/module-sdk": "0.2.3",
     "@size-limit/esbuild-why": "^11",
     "@size-limit/preset-small-lib": "^11",
     "@types/bun": "latest",
     "@types/yargs": "^17.0.33",
-    "@vitest/coverage-v8": "^1.3.1",
+    "@vitest/coverage-istanbul": "^3.0.7",
     "buffer": "^6.0.3",
     "concurrently": "^8.2.2",
     "dotenv": "^16.4.5",
@@ -37,9 +38,7 @@
     "tslib": "^2.6.3",
     "typedoc": "^0.25.9",
     "viem": "^2.22.0",
-    "vitest": "^1.3.1",
-    "yargs": "^17.7.2",
-    "@rhinestone/module-sdk": "0.2.3"
+    "yargs": "^17.7.2"
   },
   "peerDependencies": {
     "typescript": "^5",
@@ -99,6 +98,7 @@
     "dev": "bun run build && bun link && concurrently \"bun run esm:watch\" \"bun run cjs:watch\" \"bun run esm:watch:aliases\" \"bun run cjs:watch:aliases\"",
     "build": "bun run clean && bun run build:cjs && bun run build:esm && bun run build:types",
     "clean": "rimraf ./dist/_esm ./dist/_cjs ./dist/_types ./dist/tsconfig",
+    "coverage": "vitest run -c ./src/test/vitest.config.ts --coverage",
     "test": "vitest run -c ./src/test/vitest.config.ts",
     "test:watch": "vitest --watch -c ./src/test/vitest.config.ts",
     "playground": "RUN_PLAYGROUND=true vitest -c ./src/test/vitest.config.ts -t=playground",
@@ -129,5 +129,8 @@
   },
   "type": "module",
   "types": "./dist/_types/index.d.ts",
-  "typings": "./dist/_types/index.d.ts"
+  "typings": "./dist/_types/index.d.ts",
+  "dependencies": {
+    "vitest": "^3.0.7"
+  }
 }

@@ -114,7 +114,6 @@ export const initNetwork = async (
   if (!privateKey) throw new Error("Missing env var PRIVATE_KEY")
   if (!privateKeyTwo) throw new Error("Missing env var PRIVATE_KEY_TWO")
   if (!chainId) throw new Error("Missing env var TESTNET_CHAIN_ID")
-  if (!paymasterUrl) console.log("Missing env var PAYMASTER_URL")
 
   try {
     chain = getChain(+chainId)

@@ -49,8 +49,8 @@ describe("mee.getGasToken", () => {
     expect(result.paymentTokens[0].symbol).toBe("ETH")
   })
 
-  test("should throw error for invalid chain id", () => {
-    expect(() =>
+  test("should throw error for invalid chain id", async () => {
+    await expect(
       meeClient.getGasToken({
         chainId: 999,
         address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
@@ -58,8 +58,8 @@ describe("mee.getGasToken", () => {
     ).rejects.toThrow("Gas token not found for chain 999")
   })
 
-  test("should throw error for invalid chain id", () => {
-    expect(() =>
+  test("should throw error for invalid chain id", async () => {
+    await expect(
       meeClient.getGasToken({
         chainId: 999,
         address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"

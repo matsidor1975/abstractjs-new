@@ -77,7 +77,7 @@ describe("account.decorators", async () => {
   })
 
   test.concurrent("should currently fail to sign with typed data", async () => {
-    expect(
+    await expect(
       nexusClient.signTypedData({
         domain: {
           name: "Ether Mail",

@@ -1,0 +1,14 @@
+# Ignore node_modules
+node_modules/
+
+# Ignore build artifacts
+dist/
+build/
+
+# Ignore large data files
+*.csv
+*.json
+.data
+
+# Include specific directories that might otherwise be excluded
+!src/important-directory/
