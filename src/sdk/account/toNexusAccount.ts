@@ -44,13 +44,9 @@ import {
 } from "viem/account-abstraction"
 
 import {
-  BICONOMY_ATTESTER_ADDRESS,
   ENTRY_POINT_ADDRESS,
-  MAINNET_ADDRESS_K1_VALIDATOR_ADDRESS,
-  MAINNET_ADDRESS_K1_VALIDATOR_FACTORY_ADDRESS,
-  NEXUS_BOOTSTRAP_ADDRESS,
-  REGISTRY_ADDRESS,
-  RHINESTONE_ATTESTER_ADDRESS
+  LATEST_DEFAULT_ADDRESSES,
+  REGISTRY_ADDRESS
 } from "../constants"
 // Constants
 import { EntrypointAbi } from "../constants/abi"
@@ -85,6 +81,7 @@ import {
   isNullOrUndefined,
   typeToString
 } from "./utils/Utils"
+import { getConfigFromVersion } from "./utils/getVersion"
 import { type EthereumProvider, type Signer, toSigner } from "./utils/toSigner"
 
 /**
@@ -116,6 +113,14 @@ export type ToNexusSmartAccountParameters = {
   bootStrapAddress?: Address
   /** Optional registry address */
   registryAddress?: Address
+  /** Optional version of the SDK. Used only if old configurations are required for the purpose of upgrading or migrating accounts.
+   * This is not required for normal account creation. It will override configurations for the attester and factory addresses.
+   * It should be used only if the account is being migrated from an older version of the SDK. Do not use this for new accounts.
+   */
+  oldVersion?:
+    | `${number}.${number}.${number}`
+    | `${number}.${number}`
+    | `${number}`
 } & Prettify<
   Pick<
     ClientConfig<Transport, Chain, Account, RpcSchema>,
@@ -213,20 +218,26 @@ export const toNexusAccount = async (
     signer: _signer,
     index = 0n,
     module: module_,
-    factoryAddress = MAINNET_ADDRESS_K1_VALIDATOR_FACTORY_ADDRESS,
-    validatorAddress = MAINNET_ADDRESS_K1_VALIDATOR_ADDRESS,
     key = "nexus account",
     name = "Nexus Account",
-    attesters: attesters_ = [
-      RHINESTONE_ATTESTER_ADDRESS,
-      BICONOMY_ATTESTER_ADDRESS
-    ],
     attesterThreshold = 1,
-    bootStrapAddress = NEXUS_BOOTSTRAP_ADDRESS,
-    registryAddress = REGISTRY_ADDRESS,
     useK1Config = true,
-    validatorInitData: validatorInitData_
+    validatorInitData: validatorInitData_,
+    oldVersion,
+    registryAddress = REGISTRY_ADDRESS
   } = parameters
+
+  let {
+    attesters = LATEST_DEFAULT_ADDRESSES.attesters,
+    factoryAddress = LATEST_DEFAULT_ADDRESSES.factoryAddress,
+    validatorAddress = LATEST_DEFAULT_ADDRESSES.validatorAddress,
+    bootStrapAddress = LATEST_DEFAULT_ADDRESSES.bootStrapAddress
+  } = parameters
+
+  if (oldVersion) {
+    ;({ attesters, factoryAddress, validatorAddress, bootStrapAddress } =
+      getConfigFromVersion(oldVersion))
+  }
 
   // @ts-ignore
   const signer = await toSigner({ signer: _signer })
@@ -237,6 +248,7 @@ export const toNexusAccount = async (
     key,
     name
   }).extend(publicActions)
+
   const signerAddress = walletClient.account.address
   const publicClient = createPublicClient({ chain, transport })
 
@@ -254,7 +266,7 @@ export const toNexusAccount = async (
     ? await getK1FactoryData({
         signerAddress,
         index,
-        attesters: attesters_,
+        attesters,
         attesterThreshold
       })
     : await getDefaultFactoryData({
@@ -264,7 +276,7 @@ export const toNexusAccount = async (
         walletClient,
         bootStrapAddress,
         registryAddress,
-        attesters: attesters_,
+        attesters,
         attesterThreshold,
         validatorAddress
       })
@@ -301,7 +313,7 @@ export const toNexusAccount = async (
           publicClient,
           signerAddress,
           index,
-          attesters: attesters_,
+          attesters,
           threshold: attesterThreshold,
           factoryAddress
         })
@@ -624,7 +636,7 @@ export const toNexusAccount = async (
       signer,
       walletClient,
       publicClient,
-      attesters: attesters_,
+      attesters,
       chain
     }
   })
