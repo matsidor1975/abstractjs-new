@@ -226,3 +226,4 @@
 2025-09-11 14:59:22 adjust timeout
 2025-09-21 10:33:52 update schema migration
 2025-02-10 00:00:37 update docs with examples
+2025-03-17 23:09:47 improve logging format
