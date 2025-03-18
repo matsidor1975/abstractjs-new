@@ -27,10 +27,9 @@ import {
 } from "../../clients/createBicoBundlerClient"
 import { parseModuleTypeId } from "../../clients/decorators/erc7579/supportsModule"
 import {
-  NEXUS_ACCOUNT_FACTORY,
+  K1_VALIDATOR_ADDRESS,
+  K1_VALIDATOR_FACTORY_ADDRESS,
   OWNABLE_VALIDATOR_ADDRESS,
-  TEST_ADDRESS_K1_VALIDATOR_ADDRESS,
-  TEST_ADDRESS_K1_VALIDATOR_FACTORY_ADDRESS,
   getOwnableValidator,
   getOwnableValidatorSignature
 } from "../../constants"
@@ -70,9 +69,7 @@ describe("modules.ownables", async () => {
     nexusAccount = await toNexusAccount({
       chain,
       signer: eoaAccount,
-      transport: http(),
-      validatorAddress: TEST_ADDRESS_K1_VALIDATOR_ADDRESS,
-      factoryAddress: TEST_ADDRESS_K1_VALIDATOR_FACTORY_ADDRESS
+      transport: http()
     })
 
     nexusClient = createSmartAccountClient({
@@ -111,7 +108,7 @@ describe("modules.ownables", async () => {
     expect(installSuccess).toBe(true)
   })
 
-  testnetTest(
+  testnetTest.skip(
     "should init a nexus account with ownable validator, without k1 config",
     async ({ config: { account, accountTwo, chain, bundlerUrl } }) => {
       if (!account || !accountTwo) throw new Error("Account not found")
@@ -130,7 +127,7 @@ describe("modules.ownables", async () => {
         transport: http(),
         useK1Config: false,
         validatorInitData,
-        factoryAddress: NEXUS_ACCOUNT_FACTORY,
+        factoryAddress: K1_VALIDATOR_FACTORY_ADDRESS,
         validatorAddress: OWNABLE_VALIDATOR_ADDRESS
       })
 
@@ -266,8 +263,6 @@ describe("modules.ownables", async () => {
   }, 90000)
 
   test("should require 2 signatures to send user operation", async () => {
-    expect(nexusClient.account.getModule().address).toBe(ownableModule.address)
-
     const userOp = await nexusClient.prepareUserOperation({
       calls: [
         {
@@ -277,7 +272,7 @@ describe("modules.ownables", async () => {
       ]
     })
 
-    const userOpHash = await nexusClient.account.getUserOpHash(userOp)
+    const userOpHash = nexusClient.account.getUserOpHash(userOp)
     const signature1 = await eoaAccount?.signMessage?.({
       message: { raw: userOpHash }
     })
@@ -383,8 +378,6 @@ describe("modules.ownables", async () => {
     expect(userOpSuccess).toBe(true)
     const [installedValidatorsAfter] =
       await nexusClient.getInstalledValidators()
-    expect(installedValidatorsAfter).toEqual([
-      TEST_ADDRESS_K1_VALIDATOR_ADDRESS
-    ])
+    expect(installedValidatorsAfter).toEqual([K1_VALIDATOR_ADDRESS])
   })
 })

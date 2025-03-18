@@ -25,11 +25,10 @@ import {
 } from "../clients/createBicoBundlerClient"
 import {
   BICONOMY_ATTESTER_ADDRESS,
+  LATEST_DEFAULT_ADDRESSES,
   MEE_VALIDATOR_ADDRESS,
-  NEXUS_ACCOUNT_FACTORY,
-  RHINESTONE_ATTESTER_ADDRESS,
-  TEST_ADDRESS_K1_VALIDATOR_ADDRESS,
-  TEST_ADDRESS_K1_VALIDATOR_FACTORY_ADDRESS
+  NEXUS_ACCOUNT_FACTORY_ADDRESS,
+  RHINESTONE_ATTESTER_ADDRESS
 } from "../constants"
 import { type NexusAccount, toNexusAccount } from "./toNexusAccount"
 import { getK1NexusAddress } from "./utils"
@@ -66,9 +65,7 @@ describe("nexus.account.addresses", async () => {
     nexusAccount = await toNexusAccount({
       chain,
       signer: eoaAccount,
-      transport: http(),
-      validatorAddress: TEST_ADDRESS_K1_VALIDATOR_ADDRESS,
-      factoryAddress: TEST_ADDRESS_K1_VALIDATOR_FACTORY_ADDRESS
+      transport: http()
     })
 
     nexusClient = createSmartAccountClient({
@@ -90,8 +87,7 @@ describe("nexus.account.addresses", async () => {
       signerAddress: eoaAccount.address,
       index: 0n,
       attesters: [RHINESTONE_ATTESTER_ADDRESS, BICONOMY_ATTESTER_ADDRESS],
-      threshold: 1,
-      factoryAddress: TEST_ADDRESS_K1_VALIDATOR_FACTORY_ADDRESS
+      threshold: 1
     })
     const gottenAddress = await nexusClient.account.getAddress()
     expect(counterfactualAddressFromHelper).toBe(nexusAccountAddress)
@@ -107,8 +103,7 @@ describe("nexus.account.addresses", async () => {
       signerAddress: eoaAccount.address,
       index: 0n,
       attesters: [RHINESTONE_ATTESTER_ADDRESS, BICONOMY_ATTESTER_ADDRESS],
-      threshold: 1,
-      factoryAddress: TEST_ADDRESS_K1_VALIDATOR_FACTORY_ADDRESS
+      threshold: 1
     })
     const gottenAddress = await nexusClient.account.getAddress()
     expect(counterfactualAddressFromHelper).toBe(nexusAccountAddress)
@@ -179,9 +174,9 @@ describe("nexus.account.addresses", async () => {
       chain: baseSepolia,
       transport: http(),
       validatorAddress: MEE_VALIDATOR_ADDRESS,
-      factoryAddress: NEXUS_ACCOUNT_FACTORY,
       attesters: [RHINESTONE_ATTESTER_ADDRESS, BICONOMY_ATTESTER_ADDRESS],
-      validatorInitData: eoaAccount.address
+      validatorInitData: eoaAccount.address,
+      factoryAddress: NEXUS_ACCOUNT_FACTORY_ADDRESS
     })
 
     const meeAddress = await meeAccount.getAddress()

@@ -1,4 +1,8 @@
 import {
+  COUNTER_ADDRESS,
+  UNIVERSAL_ACTION_POLICY_ADDRESS
+} from "@biconomy/ecosystem"
+import {
   http,
   type Address,
   type Chain,
@@ -11,7 +15,6 @@ import {
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts"
 import { afterAll, beforeAll, describe, expect, test } from "vitest"
 import { CounterAbi } from "../../../test/__contracts/abi/CounterAbi"
-import { testAddresses } from "../../../test/callDatas"
 import { toNetwork } from "../../../test/testSetup"
 import {
   fundAndDeployClients,
@@ -25,7 +28,11 @@ import {
   type NexusClient,
   createSmartAccountClient
 } from "../../clients/createBicoBundlerClient"
-import { SmartSessionMode, getUniversalActionPolicy } from "../../constants"
+import {
+  SMART_SESSIONS_ADDRESS,
+  SmartSessionMode,
+  getUniversalActionPolicy
+} from "../../constants"
 import { parseReferenceValue } from "../utils/Helpers"
 import type { Module } from "../utils/Types"
 import { abiToPoliciesInfo, parse, stringify, toActionConfig } from "./Helpers"
@@ -63,7 +70,7 @@ describe("modules.smartSessions", async () => {
       account: await toNexusAccount({
         chain,
         signer: eoaAccount,
-        transport: http()
+        transport: http(network.rpcUrl)
       }),
       transport: http(bundlerUrl),
       mock: true
@@ -82,9 +89,10 @@ describe("modules.smartSessions", async () => {
 
   test.concurrent("should have smart account bytecode", async () => {
     const bytecodes = await Promise.all(
-      [testAddresses.SmartSession, testAddresses.UniActionPolicy].map(
-        (address) => testClient.getCode({ address })
-      )
+      [
+        SMART_SESSIONS_ADDRESS as Address,
+        UNIVERSAL_ACTION_POLICY_ADDRESS as Address
+      ].map((address) => testClient.getCode({ address }))
     )
     expect(bytecodes.every((bytecode) => !!bytecode?.length)).toBeTruthy()
   })
@@ -92,7 +100,7 @@ describe("modules.smartSessions", async () => {
   test("should convert an ABI to a contract whitelist", async () => {
     const contractWhitelist = abiToPoliciesInfo({
       abi: CounterAbi,
-      contractAddress: testAddresses.Counter
+      contractAddress: COUNTER_ADDRESS as Address
     })
 
     expect(contractWhitelist).toBeDefined()
@@ -100,22 +108,22 @@ describe("modules.smartSessions", async () => {
     // Verify the structure matches all CounterAbi functions
     expect(contractWhitelist).toEqual([
       {
-        contractAddress: testAddresses.Counter,
+        contractAddress: COUNTER_ADDRESS as Address,
         functionSelector: "0x871cc9d4", // decrementNumber
         rules: []
       },
       {
-        contractAddress: testAddresses.Counter,
+        contractAddress: COUNTER_ADDRESS as Address,
         functionSelector: "0xf2c9ecd8", // getNumber
         rules: []
       },
       {
-        contractAddress: testAddresses.Counter,
+        contractAddress: COUNTER_ADDRESS as Address,
         functionSelector: "0x273ea3e3", // incrementNumber
         rules: []
       },
       {
-        contractAddress: testAddresses.Counter,
+        contractAddress: COUNTER_ADDRESS as Address,
         functionSelector: "0x12467434", // revertOperation
         rules: []
       }
@@ -176,7 +184,9 @@ describe("modules.smartSessions", async () => {
       toActionConfig(actionConfigData)
     )
 
-    expect(installUniversalPolicy.policy).toEqual(testAddresses.UniActionPolicy)
+    expect(installUniversalPolicy.policy).toEqual(
+      UNIVERSAL_ACTION_POLICY_ADDRESS
+    )
     expect(installUniversalPolicy.initData).toBeDefined()
   })
 
@@ -231,7 +241,7 @@ describe("modules.smartSessions", async () => {
         sessionPublicKey, // session key signer
         actionPoliciesInfo: [
           {
-            contractAddress: testAddresses.Counter, // counter address
+            contractAddress: COUNTER_ADDRESS as Address, // counter address
             functionSelector: "0x273ea3e3" as Hex, // function selector for increment count
             sudo: true
           }
@@ -252,7 +262,7 @@ describe("modules.smartSessions", async () => {
 
     const sessionData: SessionData = {
       granter: nexusClient.account.address,
-      description: `Session to increment a counter for ${testAddresses.Counter}`,
+      description: `Session to increment a counter for ${COUNTER_ADDRESS}`,
       sessionPublicKey,
       moduleData: {
         permissionIds: createSessionsResponse.permissionIds,
@@ -277,7 +287,7 @@ describe("modules.smartSessions", async () => {
     }
 
     const counterBefore = await testClient.readContract({
-      address: testAddresses.Counter,
+      address: COUNTER_ADDRESS as Address,
       abi: CounterAbi,
       functionName: "getNumber"
     })
@@ -308,7 +318,7 @@ describe("modules.smartSessions", async () => {
     const userOpHash = await useSmartSessionNexusClient.usePermission({
       calls: [
         {
-          to: testAddresses.Counter,
+          to: COUNTER_ADDRESS as Address,
           data: encodeFunctionData({
             abi: CounterAbi,
             functionName: "incrementNumber"
@@ -325,7 +335,7 @@ describe("modules.smartSessions", async () => {
     expect(receipt.success).toBe(true)
 
     const counterAfter = await testClient.readContract({
-      address: testAddresses.Counter,
+      address: COUNTER_ADDRESS as Address,
       abi: CounterAbi,
       functionName: "getNumber"
     })

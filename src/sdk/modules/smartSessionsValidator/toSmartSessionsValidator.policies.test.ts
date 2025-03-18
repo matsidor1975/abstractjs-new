@@ -1,3 +1,4 @@
+import { COUNTER_ADDRESS } from "@biconomy/ecosystem"
 import {
   http,
   type Address,
@@ -7,7 +8,6 @@ import {
 } from "viem"
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts"
 import { afterAll, beforeAll, describe, expect, test } from "vitest"
-import { testAddresses } from "../../../test/callDatas"
 import { toNetwork } from "../../../test/testSetup"
 import {
   fundAndDeployClients,
@@ -54,7 +54,7 @@ describe("modules.smartSessions.policies", async () => {
     nexusAccount = await toNexusAccount({
       chain,
       signer: eoaAccount,
-      transport: http()
+      transport: http(network.rpcUrl)
     })
 
     nexusClient = createSmartAccountClient({
@@ -126,7 +126,7 @@ describe("modules.smartSessions.policies", async () => {
           chainIds: [BigInt(chain.id)],
           actionPoliciesInfo: [
             {
-              contractAddress: testAddresses.Counter,
+              contractAddress: COUNTER_ADDRESS,
               sudo: false, // covered in another test
               tokenLimits: [
                 {

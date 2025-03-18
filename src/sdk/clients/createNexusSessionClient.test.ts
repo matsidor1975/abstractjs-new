@@ -1,10 +1,10 @@
+import { COUNTER_ADDRESS } from "@biconomy/ecosystem"
 import { isSessionEnabled } from "@rhinestone/module-sdk"
 import { http, type Address, type Chain, type Hex } from "viem"
 import type { LocalAccount, PublicClient } from "viem"
 import { encodeFunctionData } from "viem"
 import { afterAll, beforeAll, describe, expect, test } from "vitest"
 import { CounterAbi } from "../../test/__contracts/abi"
-import { testAddresses } from "../../test/callDatas"
 import { toNetwork } from "../../test/testSetup"
 import {
   fundAndDeployClients,
@@ -125,7 +125,7 @@ describe("nexus.session.client", async () => {
         sessionPublicKey, // session key signer
         actionPoliciesInfo: [
           {
-            contractAddress: testAddresses.Counter, // counter address
+            contractAddress: COUNTER_ADDRESS, // counter address
             functionSelector: "0x273ea3e3" as Hex, // function selector for increment count,
             sudo: true
           }
@@ -146,7 +146,7 @@ describe("nexus.session.client", async () => {
     const sessionData: SessionData = {
       granter: nexusSessionClient?.account?.address as Hex,
       sessionPublicKey,
-      description: `Session to increment a counter for ${testAddresses.Counter}`,
+      description: `Session to increment a counter for ${COUNTER_ADDRESS}`,
       moduleData: {
         permissionIds: createSessionsResponse.permissionIds,
         action: createSessionsResponse.action,
@@ -179,7 +179,7 @@ describe("nexus.session.client", async () => {
     const sessionData = parse(cachedSessionData) as SessionData
 
     const counterBefore = await testClient.readContract({
-      address: testAddresses.Counter,
+      address: COUNTER_ADDRESS,
       abi: CounterAbi,
       functionName: "getNumber"
     })
@@ -210,7 +210,7 @@ describe("nexus.session.client", async () => {
     const userOpHash = await useSmartSessionNexusClient.usePermission({
       calls: [
         {
-          to: testAddresses.Counter,
+          to: COUNTER_ADDRESS,
           data: encodeFunctionData({
             abi: CounterAbi,
             functionName: "incrementNumber",
@@ -228,7 +228,7 @@ describe("nexus.session.client", async () => {
     expect(receipt.success).toBe(true)
 
     const counterAfter = await testClient.readContract({
-      address: testAddresses.Counter,
+      address: COUNTER_ADDRESS,
       abi: CounterAbi,
       functionName: "getNumber",
       args: []
@@ -275,7 +275,7 @@ describe("nexus.session.client", async () => {
     expect(isEnabled).toBe(true)
 
     const counterBefore = await testClient.readContract({
-      address: testAddresses.Counter,
+      address: COUNTER_ADDRESS,
       abi: CounterAbi,
       functionName: "getNumber"
     })
@@ -287,7 +287,7 @@ describe("nexus.session.client", async () => {
       useSmartSessionNexusClient.usePermission({
         calls: [
           {
-            to: testAddresses.Counter,
+            to: COUNTER_ADDRESS,
             data: encodeFunctionData({
               abi: CounterAbi,
               functionName: "decrementNumber"
@@ -298,7 +298,7 @@ describe("nexus.session.client", async () => {
     ).rejects.toThrow()
 
     const counterAfter = await testClient.readContract({
-      address: testAddresses.Counter,
+      address: COUNTER_ADDRESS,
       abi: CounterAbi,
       functionName: "getNumber",
       args: []

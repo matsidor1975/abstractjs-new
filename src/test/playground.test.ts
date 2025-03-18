@@ -1,3 +1,4 @@
+import { COUNTER_ADDRESS } from "@biconomy/ecosystem"
 import {
   http,
   type Address,
@@ -36,7 +37,6 @@ import {
 } from "../sdk/modules/smartSessionsValidator/decorators"
 import { toSmartSessionsValidator } from "../sdk/modules/smartSessionsValidator/toSmartSessionsValidator"
 import { CounterAbi } from "./__contracts/abi/CounterAbi"
-import { testAddresses } from "./callDatas"
 import { toNetwork } from "./testSetup"
 import type { NetworkConfig } from "./testUtils"
 
@@ -214,7 +214,7 @@ describe.skipIf(!playgroundTrue())("playground", () => {
         sessionPublicKey: eoaAccount.address, // session key signer
         actionPoliciesInfo: [
           {
-            contractAddress: testAddresses.Counter, // counter address
+            contractAddress: COUNTER_ADDRESS, // counter address
             functionSelector: "0x273ea3e3" as Hex // function selector for increment count
           }
         ]
@@ -273,7 +273,7 @@ describe.skipIf(!playgroundTrue())("playground", () => {
     const userOpHash = await useSmartSessionNexusClient.usePermission({
       calls: [
         {
-          to: testAddresses.Counter,
+          to: COUNTER_ADDRESS,
           data: encodeFunctionData({
             abi: CounterAbi,
             functionName: "incrementNumber"

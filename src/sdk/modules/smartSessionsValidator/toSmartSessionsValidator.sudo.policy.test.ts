@@ -1,3 +1,4 @@
+import { COUNTER_ADDRESS } from "@biconomy/ecosystem"
 import {
   http,
   type Address,
@@ -9,7 +10,6 @@ import {
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts"
 import { afterAll, beforeAll, describe, expect, test } from "vitest"
 import { CounterAbi } from "../../../test/__contracts/abi/CounterAbi"
-import { testAddresses } from "../../../test/callDatas"
 import { toNetwork } from "../../../test/testSetup"
 import {
   fundAndDeployClients,
@@ -61,7 +61,7 @@ describe("modules.smartSessions.sudo.policy", async () => {
     nexusAccount = await toNexusAccount({
       chain,
       signer: eoaAccount,
-      transport: http()
+      transport: http(network.rpcUrl)
     })
 
     nexusClient = createSmartAccountClient({
@@ -114,7 +114,7 @@ describe("modules.smartSessions.sudo.policy", async () => {
           actionPoliciesInfo: [
             {
               abi: CounterAbi,
-              contractAddress: testAddresses.Counter,
+              contractAddress: COUNTER_ADDRESS,
               sudo: true
             }
           ]
@@ -134,7 +134,7 @@ describe("modules.smartSessions.sudo.policy", async () => {
     const sessionData: SessionData = {
       granter: usersNexusClient?.account?.address as Hex,
       sessionPublicKey,
-      description: `Session to increment a counter for ${testAddresses.Counter}`,
+      description: `Session to increment a counter for ${COUNTER_ADDRESS}`,
       moduleData: {
         permissionIds: createSessionsResponse.permissionIds,
         action: createSessionsResponse.action,
@@ -161,7 +161,7 @@ describe("modules.smartSessions.sudo.policy", async () => {
         accountAddress: usersSessionData.granter,
         chain,
         signer: sessionKeyAccount,
-        transport: http()
+        transport: http(network.rpcUrl)
       }),
       transport: http(bundlerUrl),
       mock: true
@@ -180,7 +180,7 @@ describe("modules.smartSessions.sudo.policy", async () => {
     )
 
     const counterBefore = await testClient.readContract({
-      address: testAddresses.Counter,
+      address: COUNTER_ADDRESS,
       abi: CounterAbi,
       functionName: "getNumber"
     })
@@ -189,14 +189,14 @@ describe("modules.smartSessions.sudo.policy", async () => {
     const userOpHash = await useSmartSessionNexusClient.usePermission({
       calls: [
         {
-          to: testAddresses.Counter,
+          to: COUNTER_ADDRESS,
           data: encodeFunctionData({
             abi: CounterAbi,
             functionName: "incrementNumber"
           })
         },
         {
-          to: testAddresses.Counter,
+          to: COUNTER_ADDRESS,
           data: encodeFunctionData({
             abi: CounterAbi,
             functionName: "decrementNumber"
@@ -206,7 +206,7 @@ describe("modules.smartSessions.sudo.policy", async () => {
     })
 
     const counterAfter = await testClient.readContract({
-      address: testAddresses.Counter,
+      address: COUNTER_ADDRESS,
       abi: CounterAbi,
       functionName: "getNumber"
     })

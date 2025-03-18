@@ -1,3 +1,4 @@
+import { MOCK_CALLEE } from "@biconomy/ecosystem"
 import { isSessionEnabled } from "@rhinestone/module-sdk"
 import {
   http,
@@ -16,7 +17,6 @@ import {
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts"
 import { afterAll, beforeAll, describe, expect, test } from "vitest"
 import { MockCalleeAbi } from "../../../test/__contracts/abi/MockCalleeAbi"
-import { testAddresses } from "../../../test/callDatas"
 import { toNetwork } from "../../../test/testSetup"
 import {
   fundAndDeployClients,
@@ -69,7 +69,7 @@ describe("modules.smartSessions.uni.policy", async () => {
       account: await toNexusAccount({
         chain,
         signer: eoaAccount,
-        transport: http()
+        transport: http(network.rpcUrl)
       }),
       transport: http(bundlerUrl),
       mock: true
@@ -91,7 +91,7 @@ describe("modules.smartSessions.uni.policy", async () => {
 
   test("should add balance to mock callee", async () => {
     const mockContract = getContract({
-      address: testAddresses.MockCallee,
+      address: MOCK_CALLEE as Address,
       abi: MockCalleeAbi,
       client: testClient
     })
@@ -101,7 +101,7 @@ describe("modules.smartSessions.uni.policy", async () => {
     const hash = await nexusClient.sendTransaction({
       calls: [
         {
-          to: testAddresses.MockCallee,
+          to: MOCK_CALLEE,
           data: encodeFunctionData({
             abi: MockCalleeAbi,
             functionName: "addBalance",
@@ -134,7 +134,7 @@ describe("modules.smartSessions.uni.policy", async () => {
     const isInstalledAfter = await nexusClient.isModuleInstalled({
       module: {
         type: "validator",
-        address: SMART_SESSIONS_ADDRESS
+        address: SMART_SESSIONS_ADDRESS as Address
       }
     })
     expect(isInstalledAfter).toBe(true)
@@ -206,7 +206,7 @@ describe("modules.smartSessions.uni.policy", async () => {
         sessionPublicKey,
         actionPoliciesInfo: [
           {
-            contractAddress: testAddresses.MockCallee, // mock callee address
+            contractAddress: MOCK_CALLEE as Address, // mock callee address
             functionSelector: parsedFunctionSelector, // addBalance function selector
             rules
           }
@@ -224,7 +224,7 @@ describe("modules.smartSessions.uni.policy", async () => {
 
     const sessionData: SessionData = {
       granter: nexusClient.account.address,
-      description: `Session to add balance to MockCallee for ${testAddresses.MockCallee}`,
+      description: `Session to add balance to MockCallee for ${MOCK_CALLEE}`,
       sessionPublicKey,
       moduleData: {
         permissionIds: createSessionsResponse.permissionIds,
@@ -269,7 +269,7 @@ describe("modules.smartSessions.uni.policy", async () => {
     expect(isEnabled).toBe(true)
 
     const mockContract = getContract({
-      address: testAddresses.MockCallee,
+      address: MOCK_CALLEE as Address,
       abi: MockCalleeAbi,
       client: testClient
     })
@@ -296,7 +296,7 @@ describe("modules.smartSessions.uni.policy", async () => {
         accountAddress: parsedSessionData.granter,
         chain,
         signer: sessionKeyAccount,
-        transport: http()
+        transport: http(network.rpcUrl)
       }),
       transport: http(bundlerUrl),
       mock: true
@@ -315,7 +315,7 @@ describe("modules.smartSessions.uni.policy", async () => {
     const userOpHash = await useSmartSessionNexusClient.usePermission({
       calls: [
         {
-          to: testAddresses.MockCallee,
+          to: MOCK_CALLEE as Address,
           data: encodeFunctionData({
             abi: MockCalleeAbi,
             functionName: "addBalance",

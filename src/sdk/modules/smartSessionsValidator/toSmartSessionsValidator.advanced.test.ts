@@ -1,15 +1,14 @@
+import { COUNTER_ADDRESS } from "@biconomy/ecosystem"
 import {
   http,
   type Address,
   type Chain,
-  type Hex,
   type LocalAccount,
   encodeFunctionData
 } from "viem"
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts"
 import { afterAll, beforeAll, describe, expect, test } from "vitest"
 import { CounterAbi } from "../../../test/__contracts/abi/CounterAbi"
-import { testAddresses } from "../../../test/callDatas"
 import { toNetwork } from "../../../test/testSetup"
 import {
   fundAndDeployClients,
@@ -85,7 +84,7 @@ describe("modules.smartSessions.dx", async () => {
     nexusAccount = await toNexusAccount({
       chain,
       signer: eoaAccount,
-      transport: http()
+      transport: http(network.rpcUrl)
     })
 
     usersNexusClient = createSmartAccountClient({
@@ -131,7 +130,7 @@ describe("modules.smartSessions.dx", async () => {
           actionPoliciesInfo: [
             {
               abi: CounterAbi,
-              contractAddress: testAddresses.Counter,
+              contractAddress: COUNTER_ADDRESS as Address,
               sudo: true
               // validUntil?: number
               // validAfter?: number
@@ -154,7 +153,7 @@ describe("modules.smartSessions.dx", async () => {
     const sessionData: SessionData = {
       granter: usersNexusClient.account.address,
       sessionPublicKey,
-      description: `Session to increment a counter for ${testAddresses.Counter}`,
+      description: `Session to increment a counter for ${COUNTER_ADDRESS}`,
       moduleData: {
         permissionIds: createSessionsResponse.permissionIds,
         action: createSessionsResponse.action,
@@ -181,7 +180,7 @@ describe("modules.smartSessions.dx", async () => {
       accountAddress: usersSessionData.granter,
       chain,
       signer: sessionKeyAccount,
-      transport: http()
+      transport: http(network.rpcUrl)
     })
 
     const smartSessionNexusClient = createSmartAccountClient({
@@ -206,14 +205,14 @@ describe("modules.smartSessions.dx", async () => {
     const userOpHash = await useSmartSessionNexusClient.usePermission({
       calls: [
         {
-          to: testAddresses.Counter,
+          to: COUNTER_ADDRESS as Address,
           data: encodeFunctionData({
             abi: CounterAbi,
             functionName: "incrementNumber"
           })
         },
         {
-          to: testAddresses.Counter,
+          to: COUNTER_ADDRESS as Address,
           data: encodeFunctionData({
             abi: CounterAbi,
             functionName: "decrementNumber"
