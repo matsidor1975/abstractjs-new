@@ -1262,3 +1262,4 @@
 2025-02-18 14:17:46 add tests
 2025-10-08 11:36:06 patch vulnerability
 2025-11-26 06:20:33 remove legacy code
+2025-03-26 14:10:37 fix crash issue
