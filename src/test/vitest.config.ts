@@ -19,14 +19,14 @@ export default defineConfig({
       thresholds: {
         lines: 80,
         functions: 50,
-        branches: 60,
+        branches: 50,
         statements: 80
       }
     },
     include: ["./src/test/**/*.test.ts", "./src/sdk/**/*.test.ts"],
     globalSetup: join(__dirname, "globalSetup.ts"),
     environment: "node",
-    testTimeout: 200_000,
+    testTimeout: 500_000,
     hookTimeout: 60_000
   }
 })

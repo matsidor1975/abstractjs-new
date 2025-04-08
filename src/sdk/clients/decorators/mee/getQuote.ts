@@ -2,7 +2,10 @@ import type { Address, Hex, OneOf } from "viem"
 import type { MultichainSmartAccount } from "../../../account/toMultiChainNexusAccount"
 import { LARGE_DEFAULT_GAS_LIMIT } from "../../../account/utils/getMultichainContract"
 import { resolveInstructions } from "../../../account/utils/resolveInstructions"
+import type { ComposableCall } from "../../../modules/utils/composabilityCalls"
 import type { BaseMeeClient } from "../../createMeeClient"
+
+export const USEROP_MIN_EXEC_WINDOW_DURATION = 180
 
 /**
  * Represents an abstract call to be executed in the transaction.
@@ -44,12 +47,14 @@ export type FeeTokenInfo = {
  */
 export type Instruction = {
   /** Array of abstract calls to be executed in the transaction */
-  calls: AbstractCall[]
+  calls: AbstractCall[] | ComposableCall[]
   /**
    * Chain ID where the transaction will be executed
    * @example 1 // Ethereum Mainnet
    */
   chainId: number
+  /** Flag for composable call */
+  isComposable?: boolean
 }
 
 /**
@@ -102,8 +107,8 @@ export type GetQuoteParams = SupertransactionLike & {
    */
   account?: MultichainSmartAccount
   /**
-   * Path to the quote endpoint. Defaults to "v1/quote"
-   * @example "v1/quote"
+   * Path to the quote endpoint. Defaults to "/quote"
+   * @example "/quote"
    */
   path?: string
   /**
@@ -111,8 +116,25 @@ export type GetQuoteParams = SupertransactionLike & {
    * Only required when using permit-enabled tokens
    */
   eoa?: Address
+  /**
+   * Lower bound execution timestamp to be applied to all user operations
+   */
+  lowerBoundTimestamp?: number
+  /**
+   * Upper bound execution timestamp to be applied to all user operations
+   */
+  upperBoundTimestamp?: number
 }
 
+export type Eip7702Auth = {
+  address: Hex
+  signature: Hex
+  nonce: Hex
+  r: Hex
+  s: Hex
+  v: Hex
+  yParity: Hex
+}
 /**
  * Internal structure for submitting a quote request to the MEE service
  * @internal
@@ -130,6 +152,12 @@ type QuoteRequest = {
     nonce: string
     /** Chain ID where the operation will be executed */
     chainId: string
+    /** Lower bound timestamp for operation validity */
+    lowerBoundTimestamp?: number
+    /** Upper bound timestamp for operation validity */
+    upperBoundTimestamp?: number
+    /** EIP7702Auth */
+    eip7702Auth?: Eip7702Auth
   }[]
   /** Payment details for the transaction */
   paymentInfo: PaymentInfo
@@ -267,8 +295,11 @@ export const getQuote = async (
     account: account_ = client.account,
     instructions,
     feeToken,
-    path = "v1/quote",
-    eoa
+    path = "quote",
+    eoa,
+    lowerBoundTimestamp: lowerBoundTimestamp_ = Math.floor(Date.now() / 1000),
+    upperBoundTimestamp: upperBoundTimestamp_ = lowerBoundTimestamp_ +
+      USEROP_MIN_EXEC_WINDOW_DURATION
   } = parameters
 
   const resolvedInstructions = await resolveInstructions(instructions)
@@ -276,14 +307,14 @@ export const getQuote = async (
 
   const validFeeToken =
     validPaymentAccount &&
-    client.info.supported_gas_tokens
+    client.info.supportedGasTokens
       .map(({ chainId }) => +chainId)
       .includes(feeToken.chainId)
 
   const validUserOps = resolvedInstructions.every(
     (userOp) =>
       account_.deploymentOn(userOp.chainId) &&
-      client.info.supported_chains
+      client.info.supportedChains
         .map(({ chainId }) => +chainId)
         .includes(userOp.chainId)
   )
@@ -308,10 +339,22 @@ export const getQuote = async (
   const userOpResults = await Promise.all(
     resolvedInstructions.map((userOp) => {
       const deployment = account_.deploymentOn(userOp.chainId, true)
+
+      let callsPromise: Promise<Hex>
+
+      if (userOp.isComposable) {
+        callsPromise = deployment.encodeExecuteComposable(
+          userOp.calls as ComposableCall[]
+        )
+      } else {
+        callsPromise =
+          userOp.calls.length > 1
+            ? deployment.encodeExecuteBatch(userOp.calls as AbstractCall[])
+            : deployment.encodeExecute(userOp.calls[0] as AbstractCall)
+      }
+
       return Promise.all([
-        userOp.calls.length > 1
-          ? deployment.encodeExecuteBatch(userOp.calls)
-          : deployment.encodeExecute(userOp.calls[0]),
+        callsPromise,
         deployment.getNonce(),
         deployment.isDeployed(),
         deployment.getInitCode(),
@@ -325,25 +368,7 @@ export const getQuote = async (
     })
   )
 
-  const userOps = userOpResults.map(
-    ([
-      callData,
-      nonce_,
-      isAccountDeployed,
-      initCode,
-      sender,
-      callGasLimit,
-      chainId
-    ]) => ({
-      sender,
-      callData,
-      callGasLimit,
-      nonce: nonce_.toString(),
-      chainId,
-      ...(!isAccountDeployed && initCode ? { initCode } : {})
-    })
-  )
-
+  const initCodeDone: string[] = [feeToken.chainId.toString()]
   const [nonce, isAccountDeployed, initCode] = await Promise.all([
     validPaymentAccount.getNonce(),
     validPaymentAccount.isDeployed(),
@@ -359,12 +384,37 @@ export const getQuote = async (
     ...(!isAccountDeployed && initCode ? { initCode } : {})
   }
 
+  const userOps = userOpResults.map(
+    ([
+      callData,
+      nonce_,
+      isAccountDeployed,
+      initCode,
+      sender,
+      callGasLimit,
+      chainId
+    ]) => {
+      const shouldContainInitCode =
+        !initCodeDone.includes(chainId) && !isAccountDeployed && initCode
+      if (shouldContainInitCode) {
+        initCodeDone.push(chainId)
+      }
+      return {
+        lowerBoundTimestamp: lowerBoundTimestamp_,
+        upperBoundTimestamp: upperBoundTimestamp_,
+        sender,
+        callData,
+        callGasLimit,
+        nonce: nonce_.toString(),
+        chainId,
+        ...(shouldContainInitCode && { initCode })
+      }
+    }
+  )
+
   const quoteRequest: QuoteRequest = { userOps, paymentInfo }
 
-  return await client.request<GetQuotePayload>({
-    path,
-    body: quoteRequest
-  })
+  return await client.request<GetQuotePayload>({ path, body: quoteRequest })
 }
 
 export default getQuote

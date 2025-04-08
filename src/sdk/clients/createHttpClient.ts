@@ -52,26 +52,25 @@ type Extended = Prettify<
  * @param params - Configuration parameters for the client
  * @returns A base Http client instance that can be extended with additional functionality
  */
-export const createHttpClient = (url: Url): HttpClient => {
+export const createHttpClient = (url: Url, apiKey?: string): HttpClient => {
   const request = async <T>(requesParams: RequestParams) => {
     const { path, method = "POST", body, params } = requesParams
-
     const urlParams = params ? `?${new URLSearchParams(params)}` : ""
-    const result = await fetch(`${url}/${path}${urlParams}`, {
+    const fullPath = `${url}/${path}${urlParams}`
+    const result = await fetch(fullPath, {
       method,
       headers: {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        ...(apiKey ? { "x-api-key": apiKey } : {})
       },
       ...(body ? { body: JSON.stringify(body) } : {})
     })
 
     const json = (await result.json()) as AnyData
-
     if (!result.ok) {
-      console.log({ json })
-      throw new Error(parseErrorMessage(json ?? result.statusText))
+      const error = json?.error ?? json ?? result?.statusText ?? result
+      throw new Error(parseErrorMessage(error))
     }
-
     return json as T
   }
 

@@ -1,4 +1,6 @@
+import type { Address } from "viem"
 import type { Instruction } from "../../clients/decorators/mee/getQuote"
+import type { RuntimeValue } from "../../modules"
 import type { BaseMultichainSmartAccount } from "../toMultiChainNexusAccount"
 import {
   type BuildApproveParameters,
@@ -7,6 +9,9 @@ import {
 import buildBatch, {
   type BuildBatchParameters
 } from "./instructions/buildBatch"
+import buildComposableUtil, {
+  type BuildComposableParameters
+} from "./instructions/buildComposable"
 import {
   type BuildDefaultParameters,
   buildDefaultInstructions
@@ -15,6 +20,10 @@ import {
   type BuildIntentParameters,
   buildIntent
 } from "./instructions/buildIntent"
+import {
+  type BuildMultichainInstructionsParameters,
+  buildMultichainInstructions
+} from "./instructions/buildMultichainInstructions"
 import {
   type BuildTransferParameters,
   buildTransfer
@@ -26,6 +35,28 @@ import {
 import buildWithdrawal, {
   type BuildWithdrawalParameters
 } from "./instructions/buildWithdrawal"
+
+/**
+ * Parameters for a token builders
+ */
+export type TokenParams = {
+  /**
+   * The address of the token to use on the relevant chain
+   * @example "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48" // USDC
+   */
+  tokenAddress: Address
+  /**
+   * The chainId to use
+   * @example 1 // Ethereum Mainnet
+   */
+  chainId: number
+  /**
+   * Amount of the token to use, in the token's smallest unit
+   * @example 1000000n // 1 USDC (6 decimals)
+   * @example { isRuntime: true, inputParams: [], outputParams: [] }
+   */
+  amount: bigint | RuntimeValue
+}
 
 /**
  * Base parameters for building instructions
@@ -108,16 +139,48 @@ export type BuildBatchInstruction = {
 }
 
 /**
- * Union type of all possible build instruction types
+ * Build action which is used to build instructions for a composable call
+ * @property type - Literal "composable" to identify the action type
+ * @property data - {@link BuildComposableParameters} The parameters for the composable action
  */
-export type BuildInstructionTypes =
-  | BuildDefaultInstruction
+export type BuildComposableInstruction = {
+  type: "default"
+  data: BuildComposableParameters
+}
+
+/**
+ * Build action which is used to build instructions for uninstalling modules
+ * @property type - Literal "buildMultichainInstructions" to identify the action type
+ * @property data - {@link BuildMultichainInstructionParameters} The parameters for the uninstall modules action
+ */
+export type BuildMultichainInstructionInstruction = {
+  type: "multichain"
+  data: BuildMultichainInstructionsParameters
+}
+
+export type BaseInstructionTypes =
   | BuildIntentInstruction
   | BuildTransferFromInstruction
   | BuildTransferInstruction
   | BuildApproveInstruction
   | BuildWithdrawalInstruction
   | BuildBatchInstruction
+  | BuildMultichainInstructionInstruction
+
+/**
+ * Union type of all possible build instruction types
+ */
+export type BuildInstructionTypes =
+  | BaseInstructionTypes
+  | BuildDefaultInstruction
+
+/**
+ * Union type of all possible build composable instruction types
+ */
+export type BuildComposableInstructionTypes =
+  | BaseInstructionTypes
+  | BuildComposableInstruction
+
 /**
  * Builds transaction instructions based on the provided action type and parameters
  *
@@ -180,6 +243,41 @@ export const build = async (
     }
     case "withdrawal": {
       return buildWithdrawal(baseParams, data)
+    }
+    case "batch": {
+      return buildBatch(baseParams, data)
+    }
+    case "multichain": {
+      return buildMultichainInstructions(baseParams, data)
+    }
+    default: {
+      throw new Error(`Unknown build action type: ${type}`)
+    }
+  }
+}
+
+// Exactly same as build decorator, but forces to use composable call.
+export const buildComposable = async (
+  baseParams: BaseInstructionsParams,
+  parameters: BuildComposableInstructionTypes
+): Promise<Instruction[]> => {
+  const { type, data } = parameters
+
+  switch (type) {
+    case "default": {
+      return buildComposableUtil(baseParams, data)
+    }
+    case "transferFrom": {
+      return buildTransferFrom(baseParams, data, true)
+    }
+    case "transfer": {
+      return buildTransfer(baseParams, data, true)
+    }
+    case "approve": {
+      return buildApprove(baseParams, data, true)
+    }
+    case "withdrawal": {
+      return buildWithdrawal(baseParams, data, true)
     }
     case "batch": {
       return buildBatch(baseParams, data)

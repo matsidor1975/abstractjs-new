@@ -31,7 +31,6 @@ import {
   makeInstallDataAndHash
 } from "../account/utils/Utils"
 import { getChain } from "../account/utils/getChain"
-import { K1_VALIDATOR_ADDRESS } from "../constants"
 import {
   type NexusClient,
   createSmartAccountClient
@@ -86,8 +85,6 @@ describe("nexus.client", async () => {
     const isDeployed = await nexusClient.account.isDeployed()
 
     if (!isDeployed) {
-      console.log("Smart account not deployed. Deploying...")
-
       // Fund the account first
       await topUp(testClient, nexusAccountAddress, parseEther("0.01"))
 
@@ -191,12 +188,6 @@ describe("nexus.client", async () => {
     expect(estimatedGas.preVerificationGas).toBeTruthy()
   }, 30000)
 
-  test.skip("should create a smart account with paymaster with an api key", async () => {
-    const paymaster = nexusClient.paymaster
-    expect(paymaster).not.toBeNull()
-    expect(paymaster).not.toBeUndefined()
-  })
-
   test("should return chain object for chain id 1", async () => {
     const chainId = 1
     const chain = getChain(chainId)
@@ -237,7 +228,7 @@ describe("nexus.client", async () => {
       nexusClient.isModuleInstalled({
         module: {
           type: "validator",
-          address: K1_VALIDATOR_ADDRESS,
+          address: nexusClient.account.getModule().address,
           initData: "0x"
         }
       }),
@@ -249,7 +240,7 @@ describe("nexus.client", async () => {
       })
     ])
     expect(accountId.indexOf("biconomy.nexus") > -1).toBe(true)
-    expect(isModuleInstalled).toBe(true)
+    expect(isModuleInstalled).toBe(false)
     expect(supportsExecutionMode).toBe(true)
     expect(supportsModule).toBe(true)
   })

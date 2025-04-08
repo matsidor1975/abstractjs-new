@@ -1,15 +1,24 @@
 import { type Address, encodeFunctionData, erc20Abi } from "viem"
-import type {
-  AbstractCall,
-  Instruction,
-  Trigger
-} from "../../../clients/decorators/mee"
-import type { BaseInstructionsParams } from "../build"
+import type { AbstractCall, Instruction } from "../../../clients/decorators/mee"
+import type { AnyData } from "../../../modules/utils/Types"
+import {
+  type ComposableCall,
+  isComposableCallRequired
+} from "../../../modules/utils/composabilityCalls"
+import {
+  type RuntimeValue,
+  getFunctionContextFromAbi
+} from "../../../modules/utils/runtimeAbiEncoding"
+import type { BaseInstructionsParams, TokenParams } from "../build"
+import {
+  type BuildComposableParameters,
+  buildComposableCall
+} from "./buildComposable"
 
 /**
  * Parameters for building an approval instruction
  */
-export type BuildApproveParameters = Trigger & {
+export type BuildApproveParameters = TokenParams & {
   /**
    * Gas limit for the approval transaction. Required when using the standard
    * approve function instead of permit.
@@ -67,26 +76,62 @@ export type BuildApproveParams = BaseInstructionsParams & {
  */
 export const buildApprove = async (
   baseParams: BaseInstructionsParams,
-  parameters: BuildApproveParameters
+  parameters: BuildApproveParameters,
+  forceComposableEncoding = false
 ): Promise<Instruction[]> => {
   const { currentInstructions = [] } = baseParams
   const { chainId, tokenAddress, amount, gasLimit, spender } = parameters
 
-  const triggerCall: AbstractCall = {
-    to: tokenAddress,
-    data: encodeFunctionData({
-      abi: erc20Abi,
-      functionName: "approve",
-      args: [spender, amount]
-    }),
-    ...(gasLimit ? { gasLimit } : {})
+  const abi = erc20Abi
+  const functionSig = "approve"
+  const args: readonly [`0x${string}`, bigint | RuntimeValue] = [
+    spender,
+    amount
+  ]
+
+  const functionContext = getFunctionContextFromAbi(functionSig, abi)
+
+  // Check for the runtime arguments and detect the need for composable call
+  const isComposableCall = forceComposableEncoding
+    ? true
+    : isComposableCallRequired(
+        functionContext,
+        args as unknown as Array<AnyData>
+      )
+
+  let triggerCalls: AbstractCall[] | ComposableCall[]
+
+  // If the composable call is detected ? The call needs to composed with runtime encoding
+  if (isComposableCall) {
+    const composableCallParams: BuildComposableParameters = {
+      to: tokenAddress,
+      functionName: functionSig,
+      args: args as unknown as Array<AnyData>,
+      abi,
+      chainId
+    }
+
+    triggerCalls = await buildComposableCall(baseParams, composableCallParams)
+  } else {
+    triggerCalls = [
+      {
+        to: tokenAddress,
+        data: encodeFunctionData({
+          abi,
+          functionName: functionSig,
+          args: args as [`0x${string}`, bigint]
+        }),
+        ...(gasLimit ? { gasLimit } : {})
+      }
+    ] as AbstractCall[]
   }
 
   return [
     ...currentInstructions,
     {
-      calls: [triggerCall],
-      chainId
+      calls: triggerCalls,
+      chainId,
+      isComposable: isComposableCall
     }
   ]
 }

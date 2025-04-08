@@ -6,12 +6,69 @@ import {
   type PublicClient,
   createPublicClient
 } from "viem"
+import { privateKeyToAccount } from "viem/accounts"
+import { baseSepolia } from "viem/chains"
 import { beforeAll, describe, expect, test } from "vitest"
 import { toNetwork } from "../../../test/testSetup"
-import type { NetworkConfig } from "../../../test/testUtils"
-import { getDefaultNexusAddress, getK1NexusAddress } from "./getNexusAddress"
+import type { MasterClient, NetworkConfig } from "../../../test/testUtils"
+import { getTestAccount, toTestClient, topUp } from "../../../test/testUtils"
+import {
+  type NexusClient,
+  createBicoBundlerClient
+} from "../../clients/createBicoBundlerClient"
+import { type NexusAccount, toNexusAccount } from "../toNexusAccount"
 
-describe("account.getNexusAddress", () => {
+describe("account.decorators.getNexusAddress.local", () => {
+  let network: NetworkConfig
+  let chain: Chain
+  let bundlerUrl: string
+
+  // Test utils
+  let testClient: MasterClient
+  let eoaAccount: LocalAccount
+
+  let nexusAccount: NexusAccount
+  let nexusClient: NexusClient
+  let nexusAccountAddress: Address
+
+  beforeAll(async () => {
+    network = await toNetwork("BESPOKE_ANVIL_NETWORK")
+    chain = network.chain
+    bundlerUrl = network.bundlerUrl
+    eoaAccount = privateKeyToAccount(`0x${process.env.PRIVATE_KEY!}`)
+    testClient = toTestClient(chain, getTestAccount(5))
+
+    nexusAccount = await toNexusAccount({
+      chain,
+      transport: http(network.rpcUrl),
+      signer: eoaAccount
+    })
+
+    nexusClient = createBicoBundlerClient({
+      mock: true,
+      account: nexusAccount,
+      transport: http(bundlerUrl)
+    })
+
+    nexusAccountAddress = await nexusAccount.getAddress()
+    await topUp(testClient, nexusAccountAddress)
+  })
+
+  test("init local anvil network", async () => {
+    const hash = await nexusClient.sendUserOperation({
+      calls: [
+        {
+          to: "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045", // vitalik.eth,
+          value: 0n
+        }
+      ]
+    })
+
+    const tx = await nexusClient.waitForUserOperationReceipt({ hash })
+  })
+})
+
+describe("account.decorators.getNexusAddress.testnet", () => {
   let network: NetworkConfig
   let chain: Chain
   let bundlerUrl: string
@@ -32,37 +89,30 @@ describe("account.getNexusAddress", () => {
     })
   })
 
-  test("should check k1 nexus address", async () => {
-    const customAttesters = [
-      "0x1111111111111111111111111111111111111111" as Address,
-      "0x2222222222222222222222222222222222222222" as Address
-    ]
-    const customThreshold = 2
-    const customIndex = 5n
-
-    const k1AddressWithParams = await getK1NexusAddress({
-      publicClient: publicClient as unknown as PublicClient,
-      signerAddress: eoaAccount.address,
-      attesters: customAttesters,
-      threshold: customThreshold,
-      index: customIndex
+  test("init testnet network", async () => {
+    const account = await toNexusAccount({
+      chain,
+      transport: http(network.rpcUrl),
+      signer: eoaAccount
     })
 
-    expect(k1AddressWithParams).toMatchInlineSnapshot(
-      `"0xf5268d33A8F3CB71C7bD653BbE870Eb12723355e"`
-    )
-  })
-
-  test("should check mee nexus address", async () => {
-    const index = 1n
-
-    const meeAddress = await getDefaultNexusAddress({
-      publicClient: publicClient as unknown as PublicClient,
-      signerAddress: eoaAccount.address
+    const nexusClient = createBicoBundlerClient({
+      account,
+      transport: http(
+        `https://api.pimlico.io/v2/${baseSepolia.id}/rpc?apikey=${process.env.PIMLICO_API_KEY}`
+      )
     })
 
-    expect(meeAddress).toMatchInlineSnapshot(
-      `"0xc49aAf4Ebe5d6627672ad5b4D96C83AFe4179963"`
-    )
+    const hash = await nexusClient.sendUserOperation({
+      calls: [
+        {
+          to: "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045", // vitalik.eth,
+          value: 0n
+        }
+      ]
+    })
+
+    const tx = await nexusClient.waitForUserOperationReceipt({ hash })
+    expect(tx.success).toBeTruthy()
   })
 })

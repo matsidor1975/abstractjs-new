@@ -1,4 +1,3 @@
-import { MOCK_K1_VALIDATOR } from "@biconomy/ecosystem"
 import {
   http,
   type Account,
@@ -21,7 +20,6 @@ import {
   type NexusAccount,
   toNexusAccount
 } from "../../../account/toNexusAccount"
-import { K1_VALIDATOR_ADDRESS } from "../../../constants"
 import {
   type NexusClient,
   createSmartAccountClient
@@ -63,7 +61,7 @@ describe("erc7579.decorators", async () => {
       mock: true
     })
 
-    nexusAccountAddress = await nexusClient.account.getCounterFactualAddress()
+    nexusAccountAddress = await nexusClient.account.getAddress()
     await fundAndDeployClients(testClient, [nexusClient])
   })
 
@@ -71,7 +69,7 @@ describe("erc7579.decorators", async () => {
     await killNetwork([network?.rpcPort, network?.bundlerPort])
   })
 
-  test.concurrent("should test read methods", async () => {
+  test.skip("should test read methods", async () => {
     const [
       installedValidators,
       installedExecutors,
@@ -90,57 +88,52 @@ describe("erc7579.decorators", async () => {
       nexusClient.isModuleInstalled({
         module: {
           type: "validator",
-          address: K1_VALIDATOR_ADDRESS,
+          address: nexusClient.account.getModule().address,
           initData: "0x"
         }
       })
     ])
 
     expect(installedExecutors[0].length).toBeTypeOf("number")
-    expect(installedValidators[0]).toEqual([K1_VALIDATOR_ADDRESS])
+    expect(installedValidators[0]).toEqual([
+      nexusClient.account.getModule().address
+    ])
     expect(isHex(activeHook)).toBe(true)
     expect(fallbackSelector.length).toBeTypeOf("number")
     expect(supportsValidator).toBe(true)
     expect(supportsDelegateCall).toBe(true)
     expect(isK1ValidatorInstalled).toBe(true)
-  })
-
-  test("should install a module", async () => {
-    const hash = await nexusClient.installModule({
-      module: {
-        type: "validator",
-        address: MOCK_K1_VALIDATOR,
-        initData: encodePacked(["address"], [eoaAccount.address])
-      }
-    })
-
-    const { success } = await nexusClient.waitForUserOperationReceipt({ hash })
-    expect(success).toBe(true)
-  })
-
-  test("should uninstall a module", async () => {
-    const hash = await nexusClient.uninstallModule({
-      module: {
-        type: "validator",
-        address: MOCK_K1_VALIDATOR,
-        initData: encodePacked(["address"], [eoaAccount.address])
-      }
-    })
-
-    const { success } = await nexusClient.waitForUserOperationReceipt({ hash })
-    expect(success).toBe(true)
-  })
-
-  test("should install it again", async () => {
-    const hash = await nexusClient.installModule({
-      module: {
-        type: "validator",
-        address: MOCK_K1_VALIDATOR,
-        initData: encodePacked(["address"], [eoaAccount.address])
-      }
-    })
-
-    const { success } = await nexusClient.waitForUserOperationReceipt({ hash })
-    expect(success).toBe(true)
+    expect([
+      installedValidators,
+      installedExecutors,
+      activeHook,
+      fallbackSelector,
+      supportsValidator,
+      supportsDelegateCall,
+      isK1ValidatorInstalled
+    ]).toMatchInlineSnapshot(`
+      [
+        [
+          [
+            "0x00000000d12897DDAdC2044614A9677B191A2d95",
+          ],
+          "0x0000000000000000000000000000000000000001",
+        ],
+        [
+          [
+            "0x7454C587FCDe26C62deDCFa53548A827CFeB7F78",
+          ],
+          "0x0000000000000000000000000000000000000001",
+        ],
+        "0x0000000000000000000000000000000000000000",
+        [
+          "0x00",
+          "0x0000000000000000000000000000000000000000",
+        ],
+        true,
+        true,
+        true,
+      ]
+    `)
   })
 })

@@ -55,11 +55,13 @@ export type SignPermitQuoteParams = {
  */
 export type SignPermitQuotePayload = GetQuotePayload & {
   /**
-   * The signature of the quote, prefixed with '0x02' and concatenated with
+   * The signature of the quote, prefixed with '0x177eee02' and concatenated with
    * the encoded permit parameters and signature components
    */
   signature: Hex
 }
+
+const PERMIT_PREFIX = "0x177eee02"
 
 /**
  * Signs a permit quote using EIP-2612 permit signatures. This enables gasless
@@ -108,12 +110,23 @@ export const signPermitQuote = async (
     client: walletClient
   })
 
-  const [nonce, name, version, domainSeparator] = await Promise.all([
+  const values = await Promise.allSettled([
     token.read.nonces([owner]),
     token.read.name(),
     token.read.version(),
     token.read.DOMAIN_SEPARATOR()
   ])
+
+  const [nonce, name, version, domainSeparator] = values.map((value, i) => {
+    const key = ["nonce", "name", "version", "domainSeparator"][i]
+    if (value.status === "fulfilled") {
+      return value.value
+    }
+    if (value.status === "rejected" && key === "version") {
+      return "1"
+    }
+    throw new Error(`Failed to get value: ${value.reason}`)
+  }) as [bigint, string, string, `0x${string}`]
 
   const signature = await walletClient.signTypedData({
     domain: {
@@ -171,10 +184,7 @@ export const signPermitQuote = async (
     ]
   )
 
-  return {
-    ...quote,
-    signature: concatHex(["0x02", encodedSignature])
-  }
+  return { ...quote, signature: concatHex([PERMIT_PREFIX, encodedSignature]) }
 }
 
 export default signPermitQuote

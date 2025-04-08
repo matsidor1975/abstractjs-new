@@ -1,9 +1,4 @@
-import {
-  deployContracts as deployEcosystemContracts,
-  sleep,
-  toBundler as toEcosystemBundler,
-  toNetwork as toEcosystemNetwork
-} from "@biconomy/ecosystem"
+import { toEcosystem } from "@biconomy/ecosystem"
 import { config } from "dotenv"
 import type { alto, anvil } from "prool/instances"
 import {
@@ -30,7 +25,7 @@ import type { TestFileNetworkType } from "./testSetup"
 config()
 
 export const BASE_SEPOLIA_RPC_URL =
-  "https://virtual.base-sepolia.rpc.tenderly.co/2f123f67-1a77-4d44-ba94-1c33b944a6e4"
+  "https://virtual.base-sepolia.rpc.tenderly.co/3c4d2e0f-2d96-457e-bbfe-02c5b60c0cf1"
 
 type AnvilInstance = ReturnType<typeof anvil>
 type BundlerInstance = ReturnType<typeof alto>
@@ -147,11 +142,9 @@ export const initNetwork = async (
 }
 
 export const initEcosystem = async ({ forkUrl }: { forkUrl?: string } = {}) => {
-  const network = await toEcosystemNetwork({ forkUrl })
-  if (!forkUrl) {
-    await deployEcosystemContracts(network)
-  }
-  const bundler = await toEcosystemBundler(network)
+  const {
+    infras: [{ network, bundler }]
+  } = await toEcosystem({ forkUrl })
 
   global.__ECOSYSTEM_INSTANCES__.set(bundler.port, bundler.instance)
   global.__ECOSYSTEM_INSTANCES__.set(network.rpcPort, network.instance)

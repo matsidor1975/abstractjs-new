@@ -90,7 +90,7 @@ describe("mee.signPermitQuote", () => {
     expect(domainSeparator).toBe(expectedDomainSeparatorForOptimism)
   })
 
-  test.concurrent("should sign a quote using signPermitQuote", async () => {
+  test("should sign a quote using signPermitQuote", async () => {
     const fusionQuote = await getFusionQuote(meeClient, {
       trigger: {
         chainId: paymentChain.id,
@@ -135,7 +135,7 @@ describe("mee.signPermitQuote", () => {
       const sender = mcNexus.signer.address
 
       const quote = await getQuote(meeClient, {
-        path: "v1/quote-permit",
+        path: "quote-permit",
         eoa: sender,
         instructions: [
           mcNexus.build({

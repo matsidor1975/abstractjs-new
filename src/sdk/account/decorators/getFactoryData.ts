@@ -1,154 +1,29 @@
 import {
   type Address,
   type Hex,
-  type PublicClient,
-  type WalletClient,
+  encodeAbiParameters,
   encodeFunctionData,
-  getContract,
   pad,
   parseAbi,
   toHex
 } from "viem"
-import {
-  MEE_VALIDATOR_ADDRESS,
-  NEXUS_BOOTSTRAP_ADDRESS,
-  REGISTRY_ADDRESS
-} from "../../constants"
 import { NexusBootstrapAbi } from "../../constants/abi/NexusBootstrapAbi"
+import type {
+  GenericModuleConfig,
+  PrevalidationHookModuleConfig
+} from "../toNexusAccount"
 
-/**
- * Parameters for generating K1 factory initialization data
- * @property signerAddress - {@link Address} The address of the EOA signer
- * @property index - Account index as BigInt for deterministic deployment
- * @property attesters - Array of {@link Address} attester addresses for account verification
- * @property attesterThreshold - Minimum number of attesters required for validation
- */
-export type GetK1FactoryDataParams = {
-  signerAddress: Address
+export type GetFactoryDataParams = {
+  /** Hex string of the validator init data */
+  initData: Hex
+  /** Account index for deterministic deployment */
   index: bigint
-  attesters: Address[]
-  attesterThreshold: number
 }
 
-/**
- * Generates encoded factory data for K1 account creation
- *
- * @param params - {@link GetK1FactoryDataParams} Parameters for K1 account creation
- * @param params.signerAddress - The address of the EOA signer
- * @param params.index - Account index for deterministic deployment
- * @param params.attesters - Array of attester addresses
- * @param params.attesterThreshold - Minimum number of attesters required
- *
- * @returns Promise resolving to {@link Hex} encoded function data for account creation
- *
- * @example
- * const factoryData = await getK1FactoryData({
- *   signerAddress: "0x123...",
- *   index: BigInt(0),
- *   attesters: ["0xabc...", "0xdef..."],
- *   attesterThreshold: 2
- * });
- */
-export const getK1FactoryData = async ({
-  signerAddress,
-  index,
-  attesters,
-  attesterThreshold
-}: GetK1FactoryDataParams): Promise<Hex> =>
-  encodeFunctionData({
-    abi: parseAbi([
-      "function createAccount(address eoaOwner, uint256 index, address[] attesters, uint8 threshold) external returns (address)"
-    ]),
-    functionName: "createAccount",
-    args: [signerAddress, index, attesters, attesterThreshold]
-  })
-
-/**
- * Parameters for generating MEE factory initialization data
- * @property signerAddress - {@link Address} The address of the EOA signer
- * @property index - Account index as BigInt for deterministic deployment
- * @property attesters - Array of {@link Address} attester addresses for account verification
- * @property attesterThreshold - Minimum number of attesters required for validation
- * @property validatorAddress - Optional {@link Address} of the validator (defaults to MEE_VALIDATOR_ADDRESS)
- * @property registryAddress - Optional {@link Address} of the registry contract (defaults to REGISTRY_ADDRESS)
- * @property publicClient - {@link PublicClient} Viem public client instance
- * @property walletClient - {@link WalletClient} Viem wallet client instance
- * @property bootStrapAddress - Optional {@link Address} of the bootstrap contract (defaults to NEXUS_BOOTSTRAP_ADDRESS)
- */
-export type GetDefaultFactoryDataParams = {
-  validatorInitData: Hex
-  index: bigint
-  attesters: Address[]
-  attesterThreshold: number
-  validatorAddress?: Address
-  registryAddress?: Address
-  publicClient: PublicClient
-  walletClient: WalletClient
-  bootStrapAddress?: Address
-}
-
-/**
- * Generates encoded factory data for MEE account creation
- *
- * @param params - {@link GetDefaultFactoryDataParams} Parameters for MEE account creation
- * @param params.validatorAddress - Optional validator address
- * @param params.attesters - Array of attester addresses
- * @param params.registryAddress - Optional registry contract address
- * @param params.attesterThreshold - Minimum number of attesters required
- * @param params.publicClient - Viem public client instance
- * @param params.walletClient - Viem wallet client instance
- * @param params.bootStrapAddress - Optional bootstrap contract address
- * @param params.signerAddress - The address of the EOA signer
- * @param params.index - Account index for deterministic deployment
- *
- * @returns Promise resolving to {@link Hex} encoded function data for account creation
- *
- * @example
- * const factoryData = await getDefaultFactoryData({
- *   signerAddress: "0x123...",
- *   index: BigInt(0),
- *   attesters: ["0xabc...", "0xdef..."],
- *   attesterThreshold: 2,
- *   publicClient: viemPublicClient,
- *   walletClient: viemWalletClient,
- *   validatorAddress: "0x789..." // optional
- * });
- */
-export const getDefaultFactoryData = async (
-  parameters: GetDefaultFactoryDataParams
-): Promise<Hex> => {
-  const {
-    validatorAddress = MEE_VALIDATOR_ADDRESS,
-    attesters,
-    registryAddress = REGISTRY_ADDRESS,
-    attesterThreshold,
-    publicClient,
-    walletClient,
-    bootStrapAddress = NEXUS_BOOTSTRAP_ADDRESS,
-    validatorInitData,
-    index
-  } = parameters
-
-  const nexusBootstrap = getContract({
-    address: bootStrapAddress,
-    abi: NexusBootstrapAbi,
-    client: {
-      public: publicClient,
-      wallet: walletClient
-    }
-  })
-
-  const initData =
-    await nexusBootstrap.read.getInitNexusWithSingleValidatorCalldata([
-      {
-        module: validatorAddress,
-        data: validatorInitData
-      },
-      registryAddress,
-      attesters,
-      attesterThreshold
-    ])
-
+export const getFactoryData = ({
+  initData,
+  index
+}: GetFactoryDataParams): Hex => {
   const salt = pad(toHex(index), { size: 32 })
 
   return encodeFunctionData({
@@ -159,3 +34,42 @@ export const getDefaultFactoryData = async (
     args: [initData, salt]
   })
 }
+
+export type ModuleConfig = {
+  module: Address
+  data: Hex
+}
+
+export type GetInitDataParams = {
+  defaultValidator: GenericModuleConfig
+  prevalidationHooks: PrevalidationHookModuleConfig[]
+  validators: GenericModuleConfig[]
+  executors: GenericModuleConfig[]
+  hook: GenericModuleConfig
+  fallbacks: GenericModuleConfig[]
+  registryAddress: Address
+  bootStrapAddress: Address
+}
+
+export const getInitData = (params: GetInitDataParams): Hex =>
+  encodeAbiParameters(
+    [
+      { name: "bootstrap", type: "address" },
+      { name: "initData", type: "bytes" }
+    ],
+    [
+      params.bootStrapAddress,
+      encodeFunctionData({
+        abi: NexusBootstrapAbi,
+        functionName: "initNexusWithDefaultValidatorAndOtherModulesNoRegistry",
+        args: [
+          params.defaultValidator.data,
+          params.validators,
+          params.executors,
+          params.hook,
+          params.fallbacks,
+          params.prevalidationHooks
+        ]
+      })
+    ]
+  )

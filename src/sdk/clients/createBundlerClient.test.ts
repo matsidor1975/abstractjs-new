@@ -9,7 +9,7 @@ import {
 } from "viem"
 import { privateKeyToAccount } from "viem/accounts"
 import { baseSepolia } from "viem/chains"
-import { beforeAll, describe, expect, test } from "vitest"
+import { beforeAll, describe, expect, inject, test } from "vitest"
 import { toNetwork } from "../../test/testSetup"
 import type { NetworkConfig } from "../../test/testUtils"
 import {
@@ -18,13 +18,15 @@ import {
 } from "../account/toMultiChainNexusAccount"
 import { type NexusAccount, toNexusAccount } from "../account/toNexusAccount"
 import { safeMultiplier } from "../account/utils"
-import { K1_VALIDATOR_ADDRESS, testnetMcUSDC } from "../constants"
-import { K1_VALIDATOR_FACTORY_ADDRESS } from "../constants"
+import { testnetMcUSDC } from "../constants"
 import type { NexusClient } from "./createBicoBundlerClient"
 import { createBicoBundlerClient } from "./createBicoBundlerClient"
 import { type MeeClient, createMeeClient } from "./createMeeClient"
 import { erc7579Actions } from "./decorators/erc7579"
 import { smartAccountActions } from "./decorators/smartAccount"
+
+// @ts-ignore
+const { runPaidTests } = inject("settings")
 
 const COMPETITORS = [
   {
@@ -48,7 +50,7 @@ const calls = [
   }
 ]
 
-describe("nexus.interoperability with 'MeeNode'", () => {
+describe.runIf(runPaidTests)("nexus.interoperability with 'MeeNode'", () => {
   let network: NetworkConfig
   let eoaAccount: LocalAccount
 
@@ -72,6 +74,17 @@ describe("nexus.interoperability with 'MeeNode'", () => {
   })
 
   test("should send a transaction through the MeeNode", async () => {
+    const usdcBalance = await createPublicClient({
+      chain: baseSepolia,
+      transport: http()
+    }).getBalance({
+      address: mcNexus.addressOn(baseSepolia.id, true)
+    })
+
+    if (usdcBalance === 0n) {
+      throw new Error("Insufficient balance")
+    }
+
     const { hash } = await meeClient.execute({
       instructions: [
         {
@@ -85,12 +98,13 @@ describe("nexus.interoperability with 'MeeNode'", () => {
       }
     })
 
-    const receipt = await meeClient.waitForSupertransactionReceipt({ hash })
-    expect(receipt.transactionStatus).toBe("SUCCESS")
+    const { transactionStatus } =
+      await meeClient.waitForSupertransactionReceipt({ hash })
+    expect(transactionStatus).to.be.eq("MINED_SUCCESS")
   })
 })
 
-describe.each(COMPETITORS)(
+describe.runIf(runPaidTests).each(COMPETITORS)(
   "nexus.interoperability with $name bundler",
   async ({ bundlerUrl, chain, mock }) => {
     const account = privateKeyToAccount(`0x${process.env.PRIVATE_KEY as Hex}`)
@@ -103,13 +117,10 @@ describe.each(COMPETITORS)(
       nexusAccount = await toNexusAccount({
         signer: account,
         chain,
-        transport: http(),
-        // You can omit this outside of a testing context
-        validatorAddress: K1_VALIDATOR_ADDRESS,
-        factoryAddress: K1_VALIDATOR_FACTORY_ADDRESS
+        transport: http()
       })
 
-      nexusAccountAddress = await nexusAccount.getCounterFactualAddress()
+      nexusAccountAddress = await nexusAccount.getAddress()
 
       const balance = await publicClient.getBalance({
         address: nexusAccountAddress
@@ -152,9 +163,7 @@ describe.each(COMPETITORS)(
 
       // Send user operation
       const userOp = await bundlerClient.prepareUserOperation({ calls })
-
       const userOpHash = await bundlerClient.sendUserOperation(userOp)
-
       const userOpReceipt = await bundlerClient.waitForUserOperationReceipt({
         hash: userOpHash
       })

@@ -1,17 +1,27 @@
 import { type Address, encodeFunctionData } from "viem"
-import type {
-  AbstractCall,
-  Instruction,
-  Trigger
-} from "../../../clients/decorators/mee"
+import type { AbstractCall, Instruction } from "../../../clients/decorators/mee"
 import { TokenWithPermitAbi } from "../../../constants/abi/TokenWithPermitAbi"
+import type { AnyData } from "../../../modules/utils/Types"
+import {
+  type ComposableCall,
+  isComposableCallRequired,
+  isRuntimeComposableValue
+} from "../../../modules/utils/composabilityCalls"
+import {
+  type RuntimeValue,
+  getFunctionContextFromAbi
+} from "../../../modules/utils/runtimeAbiEncoding"
 import { addressEquals } from "../../utils"
-import type { BaseInstructionsParams } from "../build"
+import type { BaseInstructionsParams, TokenParams } from "../build"
+import {
+  type BuildComposableParameters,
+  buildComposableCall
+} from "./buildComposable"
 
 /**
  * Parameters for building a transfer instruction
  */
-export type BuildWithdrawalParameters = Trigger & {
+export type BuildWithdrawalParameters = TokenParams & {
   /**
    * Gas limit for the transfer transaction. Required when using the standard
    * transfer function instead of permit.
@@ -68,7 +78,8 @@ export type BuildWithdrawalParams = BaseInstructionsParams & {
  */
 export const buildWithdrawal = async (
   baseParams: BaseInstructionsParams,
-  parameters: BuildWithdrawalParameters
+  parameters: BuildWithdrawalParameters,
+  forceComposableEncoding = false
 ): Promise<Instruction[]> => {
   const { currentInstructions = [], account } = baseParams
   const {
@@ -84,28 +95,68 @@ export const buildWithdrawal = async (
     "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
   )
 
-  const erc20TokenCall: AbstractCall = {
-    to: tokenAddress,
-    data: encodeFunctionData({
-      abi: TokenWithPermitAbi,
-      functionName: "transfer",
-      args: [recipient, amount]
-    }),
-    ...(gasLimit ? { gasLimit } : {})
-  }
+  let triggerCalls: AbstractCall[] | ComposableCall[]
 
-  const nativeTokenCall: AbstractCall = {
-    to: recipient,
-    value: amount,
-    ...(gasLimit ? { gasLimit } : {})
-  }
+  if (isNativeToken) {
+    if (isRuntimeComposableValue(amount)) {
+      throw new Error("Runtime balance is not supported for Native tokens")
+    }
 
-  const triggerCall = isNativeToken ? nativeTokenCall : erc20TokenCall
+    triggerCalls = [
+      {
+        to: recipient,
+        value: amount as bigint,
+        ...(gasLimit ? { gasLimit } : {})
+      }
+    ]
+  } else {
+    const abi = TokenWithPermitAbi
+    const functionSig = "transfer"
+    const args: readonly [`0x${string}`, bigint | RuntimeValue] = [
+      recipient,
+      amount
+    ]
+
+    const functionContext = getFunctionContextFromAbi(functionSig, abi)
+
+    // Check for the runtime arguments and detect the need for composable call
+    const isComposableCall = forceComposableEncoding
+      ? true
+      : isComposableCallRequired(
+          functionContext,
+          args as unknown as Array<AnyData>
+        )
+
+    // If the composable call is detected ? The call needs to composed with runtime encoding
+    if (isComposableCall) {
+      const composableCallParams: BuildComposableParameters = {
+        to: tokenAddress,
+        functionName: functionSig,
+        args: args as unknown as Array<AnyData>,
+        abi,
+        chainId
+      }
+
+      triggerCalls = await buildComposableCall(baseParams, composableCallParams)
+    } else {
+      triggerCalls = [
+        {
+          to: tokenAddress,
+          data: encodeFunctionData({
+            abi,
+            functionName: functionSig,
+            args: args as [`0x${string}`, bigint]
+          }),
+          ...(gasLimit ? { gasLimit } : {})
+        }
+      ] as AbstractCall[]
+    }
+  }
 
   return [
     ...currentInstructions,
     {
-      calls: [triggerCall],
+      calls: triggerCalls,
       chainId
     }
   ]

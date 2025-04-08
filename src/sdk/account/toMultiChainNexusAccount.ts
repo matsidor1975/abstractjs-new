@@ -1,11 +1,5 @@
 import type { Chain, Hex, Transport } from "viem"
 import type { Instruction } from "../clients/decorators/mee/getQuote"
-import {
-  BICONOMY_ATTESTER_ADDRESS,
-  MEE_VALIDATOR_ADDRESS,
-  NEXUS_ACCOUNT_FACTORY_ADDRESS,
-  RHINESTONE_ATTESTER_ADDRESS
-} from "../constants"
 import type { ModularSmartAccount } from "../modules/utils/Types"
 import {
   type ToNexusSmartAccountParameters,
@@ -14,7 +8,9 @@ import {
 import type { Signer } from "./utils/toSigner"
 
 import {
+  type BuildComposableInstructionTypes,
   type BuildInstructionTypes,
+  buildComposable as buildComposableDecorator,
   build as buildDecorator
 } from "./decorators/build"
 import {
@@ -106,6 +102,22 @@ export type MultichainSmartAccount = BaseMultichainSmartAccount & {
     currentInstructions?: Instruction[]
   ) => Promise<Instruction[]>
   /**
+   * Function to build composable instructions
+   * @param params - The parameters for the composable instruction
+   * @returns Returns composable instructions
+   * @example
+   * const instructions = await mcAccount.build({
+   *   amount: BigInt(1000),
+   *   mcToken: mcUSDC,
+   *   toChain: base
+   * })
+   */
+  buildComposable: (
+    params: BuildComposableInstructionTypes,
+    currentInstructions?: Instruction[]
+  ) => Promise<Instruction[]>
+
+  /**
    * Function to build instructions for bridging a token across all deployments
    * @param params - The parameters for the balance requirement
    * @returns Instructions for any required bridging operations
@@ -190,11 +202,7 @@ export async function toMultichainNexusAccount(
         chain,
         signer: unresolvedSigner,
         transport: transports[i],
-        validatorAddress: MEE_VALIDATOR_ADDRESS,
-        attesters: [RHINESTONE_ATTESTER_ADDRESS, BICONOMY_ATTESTER_ADDRESS],
-        factoryAddress: NEXUS_ACCOUNT_FACTORY_ADDRESS,
-        ...accountParameters,
-        useK1Config: false
+        ...accountParameters
       })
     )
   )
@@ -235,6 +243,15 @@ export async function toMultichainNexusAccount(
   ): Promise<Instruction[]> =>
     buildDecorator({ currentInstructions, account: baseAccount }, params)
 
+  const buildComposable = (
+    params: BuildComposableInstructionTypes,
+    currentInstructions?: Instruction[]
+  ): Promise<Instruction[]> =>
+    buildComposableDecorator(
+      { currentInstructions, account: baseAccount },
+      params
+    )
+
   const buildBridgeInstructions = (
     params: Omit<MultichainBridgingParams, "account">
   ) => buildBridgeInstructionsDecorator({ ...params, account: baseAccount })
@@ -246,6 +263,7 @@ export async function toMultichainNexusAccount(
     ...baseAccount,
     getUnifiedERC20Balance,
     build,
+    buildComposable,
     buildBridgeInstructions,
     queryBridge
   }
