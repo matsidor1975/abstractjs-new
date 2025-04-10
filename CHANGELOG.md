@@ -1,5 +1,11 @@
 # @biconomy/abstractjs
 
+## 1.0.2
+
+### Patch Changes
+
+- Raw call data
+
 ## 1.0.1
 
 ### Patch Changes
