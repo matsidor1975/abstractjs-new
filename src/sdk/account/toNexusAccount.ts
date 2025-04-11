@@ -42,17 +42,21 @@ import {
   getUserOperationHash,
   toSmartAccount
 } from "viem/account-abstraction"
-
+import type { MeeAuthorization } from "../clients/decorators/mee/getQuote"
 import {
   ENTRY_POINT_ADDRESS,
   NEXUS_ACCOUNT_FACTORY_ADDRESS,
-  NEXUS_BOOTSTRAP_ADDRESS
+  NEXUS_BOOTSTRAP_ADDRESS,
+  NEXUS_IMPLEMENTATION_ADDRESS
 } from "../constants"
 // Constants
 import { EntrypointAbi } from "../constants/abi"
-import { COMPOSABILITY_MODULE_ABI } from "../constants/abi/ComposabilityAbi"
-import type { BaseComposableCall, ComposableCall } from "../modules"
+import { COMPOSABILITY_MODULE_ABI } from "../constants/abi"
 import { toEmptyHook } from "../modules/toEmptyHook"
+import type {
+  BaseComposableCall,
+  ComposableCall
+} from "../modules/utils/composabilityCalls"
 import { toDefaultModule } from "../modules/validators/default/toDefaultModule"
 import type { Validator } from "../modules/validators/toValidator"
 import { getFactoryData, getInitData } from "./decorators/getFactoryData"
@@ -130,6 +134,8 @@ export type ToNexusSmartAccountParameters = {
   factoryAddress?: Address
   /** Optional bootstrap address */
   bootStrapAddress?: Address
+  /** Optional implementation address */
+  implementationAddress?: Address
 } & Prettify<
   Pick<
     ClientConfig<Transport, Chain, Account, RpcSchema>,
@@ -187,7 +193,7 @@ export type NexusSmartAccountImplementation = SmartAccountImplementation<
     publicClient: PublicClient
 
     /** The wallet client instance */
-    walletClient: WalletClient
+    walletClient: WalletClient<Transport, Chain | undefined, Account, RpcSchema>
 
     /** The blockchain network */
     chain: Chain
@@ -197,6 +203,18 @@ export type NexusSmartAccountImplementation = SmartAccountImplementation<
 
     /** Set the active module */
     setModule: (validationModule: Validator) => void
+
+    /** Get authorization data for the EOA to Nexus Account
+     * @param delegatedContract - The contract address to delegate the authorization to. Defaults to the implementation address.
+     * @returns MeeAuthorization
+     */
+    toDelegation: (delegatedContract?: Address) => Promise<MeeAuthorization>
+
+    /** Execute the transaction to unauthorize the account */
+    unDelegate: () => Promise<Hex>
+
+    /** Check if the account is delegated to the implementation address */
+    isDelegated: () => Promise<boolean>
   }
 >
 
@@ -235,7 +253,8 @@ export const toNexusAccount = async (
     prevalidationHooks: customPrevalidationHooks,
     accountAddress: accountAddress_,
     factoryAddress = NEXUS_ACCOUNT_FACTORY_ADDRESS,
-    bootStrapAddress = NEXUS_BOOTSTRAP_ADDRESS
+    bootStrapAddress = NEXUS_BOOTSTRAP_ADDRESS,
+    implementationAddress = NEXUS_IMPLEMENTATION_ADDRESS
   } = parameters
 
   const signer = await toSigner({ signer: _signer })
@@ -246,6 +265,7 @@ export const toNexusAccount = async (
     key,
     name
   }).extend(publicActions)
+
   const publicClient = createPublicClient({ chain, transport })
 
   const entryPointContract = getContract({
@@ -353,7 +373,6 @@ export const toNexusAccount = async (
         { name: "callData", type: "bytes" }
       ]
     }
-
     const executions = calls.map((tx) => ({
       target: tx.to,
       callData: tx.data ?? "0x",
@@ -537,8 +556,65 @@ export const toNexusAccount = async (
     module = validationModule
   }
 
+  /**
+   * @description Get authorization data for the EOA to Nexus Account
+   * @param forMee - Whether to return the authorization data formatted for MEE. Defaults to false.
+   * @param delegatedContract - The contract address to delegate the authorization to. Defaults to the implementation address.
+   *
+   * @example
+   * const eip7702Auth = await nexusAccount.toDelegation() // Returns MeeAuthorization
+   */
+  async function toDelegation(
+    delegatedContract?: Address
+  ): Promise<MeeAuthorization> {
+    const contractAddress = delegatedContract || implementationAddress
+    const authorization = await walletClient.signAuthorization({
+      contractAddress
+    })
+    const eip7702Auth: MeeAuthorization = {
+      chainId: `0x${chain.id.toString(16)}` as Hex,
+      address: contractAddress as Hex,
+      nonce: `0x${authorization.nonce.toString(16)}` as Hex,
+      r: authorization.r as Hex,
+      s: authorization.s as Hex,
+      v: `0x${authorization.v!.toString(16)}` as Hex,
+      yParity: `0x${authorization.yParity!.toString(16)}` as Hex
+    }
+    return eip7702Auth
+  }
+
+  async function isDelegated(): Promise<boolean> {
+    const code = await publicClient.getCode({ address: signer.address })
+    return (
+      !!code &&
+      code
+        ?.toLowerCase()
+        .includes(NEXUS_IMPLEMENTATION_ADDRESS.substring(2).toLowerCase())
+    )
+  }
+
+  /**
+   * @description Get authorization data to unauthorize the account
+   * @returns Hex of the transaction hash
+   *
+   * @example
+   * const eip7702Auth = await nexusAccount.unDelegate()
+   */
+  async function unDelegate(): Promise<Hex> {
+    const deAuthorization = await walletClient.signAuthorization({
+      address: zeroAddress,
+      executor: "self"
+    })
+    return await walletClient.sendTransaction({
+      to: signer.address,
+      data: "0xdeadbeef",
+      type: "eip7702",
+      authorizationList: [deAuthorization]
+    })
+  }
+
   return toSmartAccount({
-    client: walletClient,
+    client: publicClient,
     entryPoint: {
       abi: EntrypointAbi,
       address: ENTRY_POINT_ADDRESS,
@@ -590,6 +666,9 @@ export const toNexusAccount = async (
     },
     getNonce,
     extend: {
+      isDelegated,
+      toDelegation,
+      unDelegate,
       entryPointAddress: entryPoint07Address,
       getAddress,
       getInitCode,

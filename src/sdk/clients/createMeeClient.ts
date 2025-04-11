@@ -5,6 +5,10 @@ import { inProduction } from "../account/utils/Utils"
 import createHttpClient, { type HttpClient, type Url } from "./createHttpClient"
 import { type GetInfoPayload, getInfo, meeActions } from "./decorators/mee"
 
+export const DEFAULT_MEE_NODE_URL = "https://mee-node.biconomy.io/v3"
+/**
+  const STAKEPOOL_MEE_NODE_URL = "https://mainnet.mee.stakepool.dev.br/v3"
+*/
 /**
  * Default URL for the MEE node service
  */
@@ -13,12 +17,6 @@ const DEFAULT_PATHFINDER_API_KEY = "mee_3ZZmXCSod4xVXDRCZ5k5LTHg"
 
 const DEFAULT_STAGING_PATHFINDER_URL = "https://staging-network.biconomy.io/v1"
 const DEFAULT_STAGING_PATHFINDER_API_KEY = "mee_3ZhZhHx3hmKrBQxacr283dHt"
-
-export const DEFAULT_MEE_NODE_URL = "https://mee-node.biconomy.io/v3"
-
-/**
-  const STAKEPOOL_MEE_NODE_URL = "https://mainnet.mee.stakepool.dev.br/v3"
-*/
 
 /**
  * Parameters for creating a Mee client

@@ -1,5 +1,11 @@
 # @biconomy/abstractjs
 
+## 1.0.3
+
+### Patch Changes
+
+- 7702 support
+
 ## 1.0.2
 
 ### Patch Changes
