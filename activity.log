@@ -407,3 +407,4 @@
 2025-08-10 09:00:06 remove unused import
 2025-05-24 19:26:30 add comments
 2025-10-24 09:12:52 improve logging format
+2025-04-15 11:21:17 better error handling
