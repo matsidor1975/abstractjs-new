@@ -18,7 +18,7 @@ import {
   toMultichainNexusAccount
 } from "../account/toMultiChainNexusAccount"
 import { aave, mcAaveV3Pool } from "../constants/protocols"
-import { mcAUSDC, mcUSDC } from "../constants/tokens"
+import { mcAUSDC, mcUSDC, testnetMcUSDC } from "../constants/tokens"
 import {
   DEFAULT_MEE_NODE_URL,
   type MeeClient,
@@ -297,7 +297,9 @@ describe("mee.createMeeClient", async () => {
   )
 })
 
-describe("mee.createMeeClient.delegated", async () => {
+// This test has been fixed and tested multiple times. This is being skipped because of high gas cost.
+// Funds are draining quickly on test wallets
+describe.skip("mee.createMeeClient.delegated", async () => {
   let mcNexus: MultichainSmartAccount
   let meeClient: MeeClient
 
@@ -312,7 +314,11 @@ describe("mee.createMeeClient.delegated", async () => {
       accountAddress: eoaAccount.address
     })
 
-    meeClient = await createMeeClient({ account: mcNexus })
+    // The explicit default URL should be removed later.
+    meeClient = await createMeeClient({
+      account: mcNexus,
+      url: DEFAULT_MEE_NODE_URL
+    })
   })
 
   test("should check if the nexus account is delegated", async () => {
@@ -341,7 +347,7 @@ describe("mee.createMeeClient.delegated", async () => {
           }
         ],
         feeToken: {
-          address: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238", // usdc
+          address: testnetMcUSDC.addressOn(sepolia.id), // usdc
           chainId: sepolia.id
         }
       })
