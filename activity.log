@@ -1383,3 +1383,4 @@
 2025-01-09 22:06:17 improve performance
 2025-09-17 11:44:42 update configs
 2025-11-03 15:49:32 fix null pointer
+2025-05-18 03:00:31 better error handling
