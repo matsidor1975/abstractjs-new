@@ -23,6 +23,11 @@ import {
 
 export const USEROP_MIN_EXEC_WINDOW_DURATION = 180
 
+export const CLEANUP_USEROP_EXTENDED_EXEC_WINDOW_DURATION =
+  USEROP_MIN_EXEC_WINDOW_DURATION / 2
+
+export const DEFAULT_GAS_LIMIT = 75_000n
+
 /**
  * Represents an abstract call to be executed in the transaction.
  * Each call specifies a target contract and optional parameters.
@@ -133,6 +138,11 @@ export type CleanUp = {
    */
   amount?: bigint
   /**
+   * Custom gas limit for cleanup userOp
+   * @example 1n
+   */
+  gasLimit?: bigint
+  /**
    * The address of the receiver where the token to cleanup
    * @example "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48" // EVM address
    */
@@ -199,6 +209,10 @@ export type GetQuoteParams = SupertransactionLike & {
    * Upper bound execution timestamp to be applied to all user operations
    */
   upperBoundTimestamp?: number
+  /**
+   * gasLimit option to override the default payment gas limit
+   */
+  gasLimit?: bigint
   /**
    * token cleanup option to pull the funds on failure or dust cleanup
    */
@@ -286,6 +300,8 @@ export type PaymentInfo = {
   chainId: string
   /** EIP7702Auth */
   eip7702Auth?: MeeAuthorization
+  /** Payment userop callGasLimit */
+  callGasLimit?: bigint
   /** Sponsorship flag  */
   sponsored?: boolean
 }
@@ -495,7 +511,10 @@ export const getQuote = async (
 
         return {
           lowerBoundTimestamp: lowerBoundTimestamp_,
-          upperBoundTimestamp: upperBoundTimestamp_,
+          upperBoundTimestamp: isCleanUpUserOp
+            ? upperBoundTimestamp_ +
+              CLEANUP_USEROP_EXTENDED_EXEC_WINDOW_DURATION
+            : upperBoundTimestamp_,
           sender,
           callData,
           callGasLimit,
@@ -522,6 +541,7 @@ const preparePaymentInfo = async (
     eoa,
     feeToken,
     delegate = false,
+    gasLimit,
     authorization,
     sponsorship,
     sponsorshipOptions
@@ -581,6 +601,7 @@ const preparePaymentInfo = async (
       sender,
       token,
       nonce,
+      callGasLimit: gasLimit || DEFAULT_GAS_LIMIT,
       chainId: chainId.toString(),
       ...(eoa ? { eoa } : {}),
       // For sponsorship, the sponsorship paymaster EOA is always assumed to be deployed and funded already
@@ -637,6 +658,7 @@ const preparePaymentInfo = async (
       sender: validPaymentAccount.address,
       token: feeToken.address,
       nonce: nonce.toString(),
+      callGasLimit: gasLimit || DEFAULT_GAS_LIMIT,
       chainId: feeToken.chainId.toString(),
       ...(eoa ? { eoa } : {}),
       ...initData
@@ -728,7 +750,8 @@ const prepareCleanUpUserOps = async (
             recipient: cleanUp.recipientAddress,
             tokenAddress: cleanUp.tokenAddress,
             amount,
-            chainId: cleanUp.chainId
+            chainId: cleanUp.chainId,
+            ...(cleanUp.gasLimit ? { gasLimit: cleanUp.gasLimit } : {})
           }
         }
       )
