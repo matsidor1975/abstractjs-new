@@ -1629,3 +1629,4 @@
 2025-10-05 21:43:33 fix broken link
 2025-07-08 10:11:27 patch memory leak
 2025-11-19 02:16:31 improve logging format
+2025-06-15 09:05:27 add fallback
