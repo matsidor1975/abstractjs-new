@@ -4,7 +4,10 @@ import {
   type Hex,
   type LocalAccount,
   type Transport,
+  createPublicClient,
+  createWalletClient,
   isHex,
+  parseUnits,
   zeroAddress
 } from "viem"
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts"
@@ -15,17 +18,30 @@ import {
   getTestChainConfig,
   toNetwork
 } from "../../../../test/testSetup"
-import { type NetworkConfig, getBalance } from "../../../../test/testUtils"
+import {
+  type NetworkConfig,
+  getAllowance,
+  getBalance,
+  setAllowance
+} from "../../../../test/testUtils"
 import {
   type MultichainSmartAccount,
   toMultichainNexusAccount
 } from "../../../account/toMultiChainNexusAccount"
 import { FORWARDER_ADDRESS } from "../../../constants"
-import { mcUSDC } from "../../../constants/tokens"
-import { type MeeClient, createMeeClient } from "../../createMeeClient"
+import { mcUSDC, mcUSDT } from "../../../constants/tokens"
+import {
+  DEFAULT_MEE_TESTNET_SPONSORSHIP_CHAIN_ID,
+  DEFAULT_MEE_TESTNET_SPONSORSHIP_PAYMASTER_ACCOUNT,
+  DEFAULT_MEE_TESTNET_SPONSORSHIP_TOKEN_ADDRESS,
+  DEFAULT_PATHFINDER_URL,
+  type MeeClient,
+  createMeeClient
+} from "../../createMeeClient"
 import executeSignedQuote from "./executeSignedQuote"
 import { type FeeTokenInfo, getQuote } from "./getQuote"
 import { ON_CHAIN_PREFIX, signOnChainQuote } from "./signOnChainQuote"
+import type { Trigger } from "./signPermitQuote"
 import waitForSupertransactionReceipt from "./waitForSupertransactionReceipt"
 
 // @ts-ignore
@@ -89,8 +105,6 @@ describe.runIf(runPaidTests)("mee.signOnChainQuote", () => {
     const sender = mcNexus.signer.address
     const { address: recipient } = mcNexus.deploymentOn(optimism.id, true)
 
-    console.log({ recipient })
-
     const quote = await getQuote(meeClient, {
       path: "quote-permit",
       eoa: sender,
@@ -145,7 +159,6 @@ describe.runIf(runPaidTests)("mee.signOnChainQuote", () => {
     )
     expect(balanceOfRecipient).toBe(trigger.amount)
   })
-
   describe("trigger calls", () => {
     test("should handle ETH forwarder trigger call", async () => {
       const ethTrigger = {
@@ -296,6 +309,129 @@ describe.runIf(runPaidTests)("mee.signOnChainQuote", () => {
       expect(signedQuote.signature.startsWith(ON_CHAIN_PREFIX)).toBe(true)
     })
   })
+  describe.skip("custom approvalAmount", () => {
+    test("should fail if approvalAmount is smaller than the trigger amount", async () => {
+      const amount = parseUnits("0.01", 6)
+      const approvalAmount = parseUnits("0.005", 6)
+      const token = mcUSDT.addressOn(network.chain.id)
+      const trigger: Trigger = {
+        chainId: network.chain.id,
+        tokenAddress: token,
+        amount,
+        approvalAmount
+      }
+      const fusionQuote = await meeClient.getOnChainQuote({
+        trigger,
+        instructions: [
+          await mcNexus.build({
+            type: "transfer",
+            data: {
+              // transfer back to the eoa account
+              recipient: mcNexus.signer.address,
+              tokenAddress: token,
+              amount: 1n,
+              chainId: network.chain.id
+            }
+          })
+        ],
+        feeToken: {
+          chainId: network.chain.id,
+          address: token
+        }
+      })
+      expect(fusionQuote).toBeDefined()
+      expect(fusionQuote.trigger).toBeDefined()
+      // Execute the quote
+      await expect(
+        meeClient.executeFusionQuote({
+          fusionQuote
+        })
+      ).rejects.toThrow()
+    })
+
+    test("changes the allowance based on approvalAmount", async () => {
+      // Define the amount to transfer and the custom approval amount (allowance)
+      const amount = parseUnits("0.01", 6)
+      const approvalAmount = parseUnits("0.03", 6)
+      const token = mcUSDT.addressOn(network.chain.id)
+      // Create a wallet client for sending transactions and a public client for reading blockchain state
+      const walletClient = createWalletClient({
+        account: eoaAccount,
+        chain: network.chain,
+        transport: http(network.rpcUrl)
+      })
+      const publicClient = createPublicClient({
+        chain: network.chain,
+        transport: http(network.rpcUrl)
+      })
+      // Set the allowance to 0 before the test to ensure a known state (reset approval)
+      await setAllowance({
+        publicClient,
+        walletClient,
+        tokenAddress: token,
+        spender: mcNexus.addressOn(network.chain.id, true),
+        amount: 0n
+      })
+
+      // Read the starting allowance (should be 0)
+      const allowanceStart = await getAllowance({
+        publicClient,
+        tokenAddress: token,
+        owner: mcNexus.signer.address,
+        spender: mcNexus.addressOn(network.chain.id, true)
+      })
+      expect(allowanceStart).toBe(0n)
+
+      // Prepare the trigger with the custom approvalAmount
+      const trigger: Trigger = {
+        chainId: network.chain.id,
+        tokenAddress: token,
+        amount, // The amount to transfer
+        approvalAmount // The custom allowance to set
+      }
+
+      const fusionQuote = await meeClient.getOnChainQuote({
+        trigger,
+        instructions: [
+          await mcNexus.build({
+            type: "transfer",
+            data: {
+              // transfer back to the eoa account
+              recipient: mcNexus.signer.address,
+              tokenAddress: token,
+              amount: 1n,
+              chainId: network.chain.id
+            }
+          })
+        ],
+        feeToken: {
+          chainId: network.chain.id,
+          address: token
+        }
+      })
+      expect(fusionQuote).toBeDefined()
+      expect(fusionQuote.trigger).toBeDefined()
+      // // Execute the quote
+      const { hash } = await meeClient.executeFusionQuote({
+        fusionQuote
+      })
+
+      // Wait for the transaction to complete
+      const executeReceipt = await meeClient.waitForSupertransactionReceipt({
+        hash
+      })
+      expect(executeReceipt.transactionStatus).toBe("MINED_SUCCESS")
+      // Read the ending allowance (should match approvalAmount - the amount that was spent on fees and the amount that was transferred)
+      const allowanceEnd = await getAllowance({
+        publicClient,
+        tokenAddress: token,
+        owner: mcNexus.signer.address,
+        spender: mcNexus.addressOn(network.chain.id, true)
+      })
+      const fees = BigInt(executeReceipt.paymentInfo?.tokenWeiAmount ?? 0n)
+      expect(allowanceEnd).toBe(approvalAmount - amount - fees)
+    })
+  })
 })
 
 describe.runIf(runPaidTests)("mee.signOnChainQuote - testnet", () => {
@@ -317,9 +453,9 @@ describe.runIf(runPaidTests)("mee.signOnChainQuote - testnet", () => {
       signer: eoaAccount,
       index: 1n
     })
-
     meeClient = await createMeeClient({
-      account: mcNexus
+      account: mcNexus,
+      apiKey: "mee_3ZLvzYAmZa89WLGa3gmMH8JJ"
     })
   })
 
@@ -363,5 +499,90 @@ describe.runIf(runPaidTests)("mee.signOnChainQuote - testnet", () => {
       confirmations: TEST_BLOCK_CONFIRMATIONS
     })
     expect(receipt.transactionStatus).toBe("MINED_SUCCESS")
+  })
+  describe("should succeed with custom call trigger", () => {
+    test("should succeed with sponsored=true transactions", async () => {
+      const fusionQuote = await meeClient.getOnChainQuote({
+        trigger: {
+          call: {
+            // dummy transfer to an address
+            to: "0x072A5250ecDE01De247b6671BC206756b6b0Ec26" as `0x${string}`,
+            value: 1n
+          },
+          chainId: network.chain.id
+        },
+        sponsorship: true,
+        sponsorshipOptions: {
+          url: DEFAULT_PATHFINDER_URL,
+          gasTank: {
+            address: DEFAULT_MEE_TESTNET_SPONSORSHIP_PAYMASTER_ACCOUNT,
+            token: DEFAULT_MEE_TESTNET_SPONSORSHIP_TOKEN_ADDRESS,
+            chainId: DEFAULT_MEE_TESTNET_SPONSORSHIP_CHAIN_ID
+          }
+        },
+        instructions: [
+          mcNexus.build({
+            type: "default",
+            data: {
+              chainId: network.chain.id,
+              calls: [
+                {
+                  // dummy transfer to an address
+                  to: "0x072A5250ecDE01De247b6671BC206756b6b0Ec26" as `0x${string}`,
+                  value: 1n
+                }
+              ]
+            }
+          })
+        ]
+      })
+      // Execute the quote
+      const { hash } = await meeClient.executeFusionQuote({
+        fusionQuote
+      })
+      // Wait for the transaction to complete
+      const receipt = await meeClient.waitForSupertransactionReceipt({ hash })
+      expect(receipt.transactionStatus).toBe("MINED_SUCCESS")
+    })
+    test("should succeed with sponsored=false transactions", async () => {
+      const fusionQuote = await meeClient.getOnChainQuote({
+        trigger: {
+          call: {
+            // dummy transfer to an address
+            to: "0x072A5250ecDE01De247b6671BC206756b6b0Ec26" as `0x${string}`,
+            value: 1n
+          },
+          chainId: network.chain.id
+        },
+        // note that the fee token needs to match with the trigger above
+        // eg if the trigger is for transferring ETH, the fee token needs to be ETH
+        feeToken: {
+          chainId: network.chain.id,
+          address: zeroAddress
+        },
+        instructions: [
+          mcNexus.build({
+            type: "default",
+            data: {
+              chainId: network.chain.id,
+              calls: [
+                {
+                  // dummy transfer to an address
+                  to: "0x072A5250ecDE01De247b6671BC206756b6b0Ec26" as `0x${string}`,
+                  value: 1n
+                }
+              ]
+            }
+          })
+        ]
+      })
+      // Execute the quote
+      const { hash } = await meeClient.executeFusionQuote({
+        fusionQuote
+      })
+      // Wait for the transaction to complete
+      const receipt = await meeClient.waitForSupertransactionReceipt({ hash })
+      expect(receipt.transactionStatus).toBe("MINED_SUCCESS")
+    })
   })
 })
