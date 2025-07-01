@@ -11,7 +11,8 @@ import {
 import type { AnyData, ModularSmartAccount } from "../../../../utils/Types"
 import {
   type GrantPermissionResponse,
-  grantPermission
+  grantPermissionPersonalSign,
+  grantPermissionTypedDataSign
 } from "../grantPermission"
 
 export type MultichainActionData = {
@@ -31,7 +32,25 @@ export type GrantMeePermissionParams<
     maxPaymentAmount?: bigint
   }
 >
-export type GrantMeePermissionPayload = GrantPermissionResponse[]
+export type GrantMeePermissionPayload = GrantPermissionResponse
+
+export const grantMeePermissionPersonalSign = async <
+  TModularSmartAccount extends ModularSmartAccount | undefined
+>(
+  baseMeeClient: BaseMeeClient,
+  params: GrantMeePermissionParams<TModularSmartAccount>
+) => {
+  return grantMeePermission(baseMeeClient, params, "PERSONAL_SIGN")
+}
+
+export const grantMeePermissionTypedDataSign = async <
+  TModularSmartAccount extends ModularSmartAccount | undefined
+>(
+  baseMeeClient: BaseMeeClient,
+  params: GrantMeePermissionParams<TModularSmartAccount>
+) => {
+  return grantMeePermission(baseMeeClient, params, "TYPED_DATA_SIGN")
+}
 
 /**
  * Grants a permission to the redeemer for the actions
@@ -40,8 +59,12 @@ export type GrantMeePermissionPayload = GrantPermissionResponse[]
  * as it is not needed for the sponsored mode
  * If the superTxn is not sponsored, the payment action policy is added
  *
- * Attention: actions for the cleanup userOps are not added automatically
- * and should be provided explicitly in the actions array
+ * @alert Attention: Smart Session actions for the cleanup userOps are not added automatically
+ * to the session, and should be provided explicitly in the actions array
+ *
+ * @alert Despite the fact smart sessions module supports it, please,
+ * avoid granting several permissions for the same chain within single `grantMeePermission` usage.
+ * Because later you will only be able to enable and use one permission per chain.
  *
  * @param baseMeeClient - The base MeeClient
  * @param params - The parameters for the grantMeePermission function
@@ -56,7 +79,8 @@ export const grantMeePermission = async <
     actions,
     feeToken,
     maxPaymentAmount
-  }: GrantMeePermissionParams<TModularSmartAccount>
+  }: GrantMeePermissionParams<TModularSmartAccount>,
+  mode: "PERSONAL_SIGN" | "TYPED_DATA_SIGN"
 ): Promise<GrantMeePermissionPayload> => {
   const account = baseMeeClient.account
 
@@ -78,41 +102,46 @@ export const grantMeePermission = async <
     maxPaymentAmount = parseUnits("5", decimals)
   }
 
-  const sessionDetails = await Promise.all(
-    actions.map((action) => {
-      const chainId = action.chainId
-      const actionTarget = action.actionTarget
-      const deployment = account.deployments.find(
-        (deployment) => deployment?.client?.chain?.id === chainId
+  const grantPermissionParameters = actions.map((action) => {
+    const chainId = action.chainId
+    const actionTarget = action.actionTarget
+    const deployment = account.deployments.find(
+      (deployment) => deployment?.client?.chain?.id === chainId
+    )
+
+    const paymentActionPolicy =
+      feeToken && feeToken.chainId === chainId
+        ? {
+            actionTarget: feeToken.address,
+            actionTargetSelector: "0xa9059cbb" as Address, // transfer
+            actionPolicies: [
+              getPolicyForPayment(maxPaymentAmount!, feeToken.address)
+            ]
+          }
+        : undefined
+
+    return {
+      account: deployment,
+      redeemer,
+      actions: [
+        ...actions.map((action) => ({ ...action, actionTarget })),
+        ...(paymentActionPolicy ? [paymentActionPolicy] : [])
+      ],
+      sessionValidator: MEE_VALIDATOR_ADDRESS,
+      sessionValidatorInitData: redeemer, // initdata for the k1Mee validator is just the signer address
+      permitERC4337Paymaster: true
+    }
+  })
+
+  return mode === "PERSONAL_SIGN"
+    ? grantPermissionPersonalSign(
+        undefined as AnyData,
+        grantPermissionParameters
       )
-
-      // if no fee token is provided, the payment action policy is not added
-      // as it is not needed for the sponsored mode
-      const paymentActionPolicy =
-        feeToken && feeToken.chainId === chainId
-          ? {
-              actionTarget: feeToken.address,
-              actionTargetSelector: "0xa9059cbb" as Address, // transfer
-              actionPolicies: [
-                getPolicyForPayment(maxPaymentAmount!, feeToken.address)
-              ]
-            }
-          : undefined
-
-      return grantPermission(undefined as AnyData, {
-        account: deployment,
-        redeemer,
-        actions: [
-          ...actions.map((action) => ({ ...action, actionTarget })),
-          ...(paymentActionPolicy ? [paymentActionPolicy] : [])
-        ],
-        sessionValidator: MEE_VALIDATOR_ADDRESS,
-        sessionValidatorInitData: redeemer, // initdata for the k1Mee validator is just the signer address
-        permitERC4337Paymaster: true
-      })
-    })
-  )
-  return sessionDetails
+    : grantPermissionTypedDataSign(
+        undefined as AnyData,
+        grantPermissionParameters
+      )
 }
 
 const getPolicyForPayment = (maxPaymentAmount: bigint, token: Address) => {

@@ -1,6 +1,13 @@
 import { getSudoPolicy } from "@rhinestone/module-sdk"
-import type { Address, Chain, Client, LocalAccount, Transport } from "viem"
-import { http, createPublicClient, erc20Abi, parseUnits } from "viem"
+import type { Address, Chain, LocalAccount, Transport } from "viem"
+import {
+  http,
+  createPublicClient,
+  erc20Abi,
+  getAbiItem,
+  parseUnits,
+  toFunctionSelector
+} from "viem"
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts"
 import { beforeAll, describe, expect, inject, test } from "vitest"
 import {
@@ -19,14 +26,19 @@ import {
 } from "../../../clients/createMeeClient"
 import { isModuleInstalled } from "../../../clients/decorators/erc7579/isModuleInstalled"
 import type { FeeTokenInfo } from "../../../clients/decorators/mee"
+import { CounterAbi } from "../../../constants/abi/CounterAbi"
 import { mcUSDC } from "../../../constants/tokens"
-import type { ModularSmartAccount } from "../../utils/Types"
+import type { AnyData } from "../../utils/Types"
 import type { Validator } from "../toValidator"
 import { meeSessionActions } from "./decorators/mee"
 import { toSmartSessionsModule } from "./toSmartSessionsModule"
 
 // @ts-ignore
 const { runPaidTests } = inject("settings")
+const COUNTER_ON_OPTIMISM = "0x167a039E79E4E90550333c7D97a12ebf5f6f116A"
+const COUNTER_ON_BASE = "0x3D9aEd944CC8cD91a89aa318efd6CDCD870241e8"
+const COUNTER_ON_BASE_SEPOLIA = "0xcaf661eeD95DE905Fcf5234040A7d6A70c6F5C85"
+const COUNTER_ON_OPTIMISM_SEPOLIA = "0x111EB1afF13be64d81485E7d45E70A6A0283dedE"
 
 describe("mee.multichainSmartSessions", () => {
   let network: NetworkConfig
@@ -73,6 +85,7 @@ describe("mee.multichainSmartSessions", () => {
     meeClient = await createMeeClient({
       account: mcNexus,
       apiKey: "mee_3ZLvzYAmZa89WLGa3gmMH8JJ"
+      //url: "https://mee-node.biconomy.io/v1"
     })
     smartSessionsValidator = toSmartSessionsModule({ signer: mcNexus.signer })
   })
@@ -83,8 +96,8 @@ describe("mee.multichainSmartSessions", () => {
       const sessionMeeClient = meeClient.extend(meeSessionActions)
 
       const transferToNexusTrigger = {
-        tokenAddress: mcUSDC.addressOn(paymentChain.id), // The USDC token address on Base chain
-        amount: parseUnits("0.07", 6), // 0.07 usdc => so Nexus is able to pay for the next SuperTxns
+        tokenAddress: mcUSDC.addressOn(paymentChain.id), // The USDC token address on Optimism chain
+        amount: parseUnits("0.1", 6), // so Nexus is able to pay for the next SuperTxns
         chainId: paymentChain.id // Which chain this trigger executes on
       }
 
@@ -120,21 +133,14 @@ describe("mee.multichainSmartSessions", () => {
 
       for (const deployment of mcNexus.deployments) {
         expect(await deployment.isDeployed()).toBe(true)
-        const isInstalled = await isModuleInstalled(
-          deployment.client as Client<
-            Transport,
-            Chain | undefined,
-            ModularSmartAccount
-          >,
-          {
-            account: deployment,
-            module: {
-              address: smartSessionsValidator.address,
-              initData: "0x",
-              type: smartSessionsValidator.type
-            }
+        const isInstalled = await isModuleInstalled(undefined as AnyData, {
+          account: deployment,
+          module: {
+            address: smartSessionsValidator.address,
+            initData: "0x",
+            type: smartSessionsValidator.type
           }
-        )
+        })
         expect(isInstalled).toBe(true)
       }
       // check approved amount on the target chain
@@ -163,7 +169,12 @@ describe("mee.multichainSmartSessions", () => {
 
       const sessionMeeClient = meeClient.extend(meeSessionActions)
       expect(Object.keys(sessionMeeClient)).toContain("prepareForPermissions")
-      expect(Object.keys(sessionMeeClient)).toContain("grantPermission")
+      expect(Object.keys(sessionMeeClient)).toContain(
+        "grantPermissionPersonalSign"
+      )
+      expect(Object.keys(sessionMeeClient)).toContain(
+        "grantPermissionTypedDataSign"
+      )
       expect(Object.keys(sessionMeeClient)).toContain("usePermission")
 
       // check that the module is installed on all chains
@@ -190,7 +201,6 @@ describe("mee.multichainSmartSessions", () => {
       const sessionMeeClient = meeClient.extend(meeSessionActions)
 
       // ======== At this point the Nexus SA is already deployed and SS is installed ==============
-
       const prepareForPermissionsPayload =
         await sessionMeeClient.prepareForPermissions({
           smartSessionsValidator,
@@ -198,30 +208,32 @@ describe("mee.multichainSmartSessions", () => {
         })
       expect(prepareForPermissionsPayload).toBeUndefined()
 
-      const COUNTER_ON_OPTIMISM = "0x167a039E79E4E90550333c7D97a12ebf5f6f116A"
-      const COUNTER_ON_BASE = "0x3D9aEd944CC8cD91a89aa318efd6CDCD870241e8"
-
-      const sessionDetails = await sessionMeeClient.grantPermission({
-        redeemer: redeemerAddress,
-        feeToken,
-        // Could add a helper function to build the actions array,
-        // this architecture allows for more flexibility and customizations
-        actions: [
-          {
-            actionTargetSelector: "0x273ea3e3",
-            actionPolicies: [getSudoPolicy()],
-            chainId: paymentChain.id,
-            actionTarget: COUNTER_ON_OPTIMISM
-          },
-          {
-            actionTargetSelector: "0x273ea3e3",
-            actionPolicies: [getSudoPolicy()],
-            chainId: targetChain.id,
-            actionTarget: COUNTER_ON_BASE
-          }
-        ],
-        maxPaymentAmount: parseUnits("3", 6)
-      })
+      const sessionDetails =
+        await sessionMeeClient.grantPermissionTypedDataSign({
+          redeemer: redeemerAddress,
+          feeToken,
+          // Could add a helper function to build the actions array,
+          // this architecture allows for more flexibility and customizations
+          actions: [
+            {
+              actionTargetSelector: toFunctionSelector(
+                getAbiItem({ abi: CounterAbi, name: "incrementNumber" })
+              ),
+              actionPolicies: [getSudoPolicy()],
+              chainId: paymentChain.id,
+              actionTarget: COUNTER_ON_OPTIMISM
+            },
+            {
+              actionTargetSelector: toFunctionSelector(
+                getAbiItem({ abi: CounterAbi, name: "incrementNumber" })
+              ),
+              actionPolicies: [getSudoPolicy()],
+              chainId: targetChain.id,
+              actionTarget: COUNTER_ON_BASE
+            }
+          ],
+          maxPaymentAmount: parseUnits("3", 6)
+        })
 
       // overload account to use the redeemer account as signer
       // so using this entity one can sign userOps that have userOp.sender = mcNexus.address
@@ -247,7 +259,9 @@ describe("mee.multichainSmartSessions", () => {
             calls: [
               {
                 to: COUNTER_ON_OPTIMISM,
-                data: "0x273ea3e3"
+                data: toFunctionSelector(
+                  getAbiItem({ abi: CounterAbi, name: "incrementNumber" })
+                )
               }
             ],
             chainId: paymentChain.id
@@ -256,7 +270,9 @@ describe("mee.multichainSmartSessions", () => {
             calls: [
               {
                 to: COUNTER_ON_BASE,
-                data: "0x273ea3e3"
+                data: toFunctionSelector(
+                  getAbiItem({ abi: CounterAbi, name: "incrementNumber" })
+                )
               }
             ],
             chainId: targetChain.id
@@ -289,26 +305,29 @@ describe("mee.multichainSmartSessions", () => {
         })
       expect(prepareForPermissionsPayload).toBeUndefined()
 
-      const COUNTER_ON_OPTIMISM = "0x167a039E79E4E90550333c7D97a12ebf5f6f116A"
-      const COUNTER_ON_BASE = "0x3D9aEd944CC8cD91a89aa318efd6CDCD870241e8"
-
-      const sessionDetails = await sessionMeeClient.grantPermission({
-        redeemer: redeemerAddress,
-        actions: [
-          {
-            actionTargetSelector: "0x273ea3e3",
-            actionPolicies: [getSudoPolicy()],
-            chainId: paymentChain.id,
-            actionTarget: COUNTER_ON_OPTIMISM
-          },
-          {
-            actionTargetSelector: "0x273ea3e3",
-            actionPolicies: [getSudoPolicy()],
-            chainId: targetChain.id,
-            actionTarget: COUNTER_ON_BASE
-          }
-        ]
-      })
+      const sessionDetails = await sessionMeeClient.grantPermissionPersonalSign(
+        {
+          redeemer: redeemerAddress,
+          actions: [
+            {
+              actionTargetSelector: toFunctionSelector(
+                getAbiItem({ abi: CounterAbi, name: "incrementNumber" })
+              ),
+              actionPolicies: [getSudoPolicy()],
+              chainId: paymentChain.id,
+              actionTarget: COUNTER_ON_OPTIMISM
+            },
+            {
+              actionTargetSelector: toFunctionSelector(
+                getAbiItem({ abi: CounterAbi, name: "incrementNumber" })
+              ),
+              actionPolicies: [getSudoPolicy()],
+              chainId: targetChain.id,
+              actionTarget: COUNTER_ON_BASE
+            }
+          ]
+        }
+      )
 
       const dappNexusAccount = await toMultichainNexusAccount({
         accountAddress: mcNexus.addressOn(paymentChain.id),
@@ -332,7 +351,9 @@ describe("mee.multichainSmartSessions", () => {
             calls: [
               {
                 to: COUNTER_ON_OPTIMISM,
-                data: "0x273ea3e3"
+                data: toFunctionSelector(
+                  getAbiItem({ abi: CounterAbi, name: "incrementNumber" })
+                )
               }
             ],
             chainId: paymentChain.id

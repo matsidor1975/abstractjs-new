@@ -2,6 +2,7 @@ import {
   COUNTER_ADDRESS,
   type Ecosystem,
   type Infra,
+  getRandomNumber,
   toClients,
   toEcosystem
 } from "@biconomy/ecosystem"
@@ -12,7 +13,10 @@ import {
   type LocalAccount,
   type PublicClient,
   createPublicClient,
-  parseEther
+  getAbiItem,
+  parseAbi,
+  parseEther,
+  toFunctionSelector
 } from "viem"
 import { afterAll, beforeAll, describe, expect, test } from "vitest"
 import { getTestAccount, killNetwork } from "../../../../test/testUtils"
@@ -22,6 +26,7 @@ import {
   createSmartAccountClient
 } from "../../../clients/createBicoBundlerClient"
 import { getSudoPolicy } from "../../../constants"
+import { CounterAbi } from "../../../constants/abi/CounterAbi"
 import { smartSessionActions } from "./decorators"
 import type { GrantPermissionResponse } from "./decorators/grantPermission"
 import { toSmartSessionsModule } from "./toSmartSessionsModule"
@@ -30,22 +35,33 @@ describe("modules.toSmartSessionsModule", () => {
   let ecosystem: Ecosystem
   let infra: Infra
   let chain: Chain
+  let secondInfra: Infra
+  let secondChain: Chain
   let bundlerUrl: string
-
+  let secondBundlerUrl: string
   let eoaAccount: LocalAccount
   let redeemerAccount: LocalAccount
   let redeemerAddress: Address
+  let nexusAccount: NexusAccount
   let nexusClient: NexusClient
   let nexusAccountAddress: Address
-  let nexusAccount: NexusAccount
+  let secondChainNexusAccount: NexusAccount
+  let secondChainNexusClient: NexusClient
   let sessionDetails: GrantPermissionResponse
+  let sessionDetailsTypedDataSign: GrantPermissionResponse
   let publicClient: PublicClient
+  let secondChainPublicClient: PublicClient
 
   beforeAll(async () => {
-    ecosystem = await toEcosystem()
+    ecosystem = await toEcosystem({
+      chainLength: 2
+    })
     infra = ecosystem.infras[0]
+    secondInfra = ecosystem.infras[1]
     chain = infra.network.chain
+    secondChain = secondInfra.network.chain
     bundlerUrl = infra.bundler.url
+    secondBundlerUrl = secondInfra.bundler.url
     eoaAccount = getTestAccount(0)
     redeemerAccount = getTestAccount(1)
     redeemerAddress = redeemerAccount.address
@@ -55,6 +71,11 @@ describe("modules.toSmartSessionsModule", () => {
       transport: http(infra.network.rpcUrl)
     })
 
+    secondChainPublicClient = createPublicClient({
+      chain: secondChain,
+      transport: http(secondInfra.network.rpcUrl)
+    })
+
     nexusAccount = await toNexusAccount({
       signer: eoaAccount,
       chain,
@@ -62,15 +83,36 @@ describe("modules.toSmartSessionsModule", () => {
     })
 
     const { testClient } = await toClients(infra.network)
+    const { testClient: secondTestClient } = await toClients(
+      secondInfra.network
+    )
 
     nexusClient = createSmartAccountClient({
       bundlerUrl,
       account: nexusAccount,
       mock: true
     })
+
+    // prepare Nexus account for a second chain
+    secondChainNexusAccount = await toNexusAccount({
+      ...nexusAccount,
+      chain: secondChain,
+      transport: http(secondInfra.network.rpcUrl)
+    })
+
+    secondChainNexusClient = createSmartAccountClient({
+      bundlerUrl: secondBundlerUrl,
+      account: secondChainNexusAccount,
+      mock: true
+    })
+
     nexusAccountAddress = await nexusAccount.getAddress()
     await testClient.setBalance({
       address: nexusAccountAddress,
+      value: parseEther("100")
+    })
+    await secondTestClient.setBalance({
+      address: secondChainNexusAccount.address,
       value: parseEther("100")
     })
   })
@@ -78,7 +120,7 @@ describe("modules.toSmartSessionsModule", () => {
     await killNetwork([infra.network.rpcPort, infra.bundler.port])
   })
 
-  test("grant a permission", async () => {
+  test("install the smart sessions module for both chains", async () => {
     const smartSessionsModule = toSmartSessionsModule({ signer: eoaAccount })
 
     // Install the smart sessions module on the Nexus client's smart contract account
@@ -92,18 +134,219 @@ describe("modules.toSmartSessionsModule", () => {
 
     expect(installSuccess).toBe(true)
 
+    const secondChainHash = await secondChainNexusClient.installModule({
+      module: smartSessionsModule
+    })
+
+    const { success: secondChainInstallSuccess } =
+      await secondChainNexusClient.waitForUserOperationReceipt({
+        hash: secondChainHash
+      })
+    expect(secondChainInstallSuccess).toBe(true)
+  })
+
+  test("grant a permission with typed data sign", async () => {
+    // extend the Nexus client with the smart sessions actions
     const smartSessionsClient = nexusClient.extend(smartSessionActions())
 
-    sessionDetails = await smartSessionsClient.grantPermission({
-      redeemer: redeemerAddress,
-      actions: [
+    sessionDetailsTypedDataSign =
+      await smartSessionsClient.grantPermissionTypedDataSign([
         {
-          actionTarget: COUNTER_ADDRESS,
-          actionTargetSelector: "0x273ea3e3",
-          actionPolicies: [getSudoPolicy()]
+          redeemer: redeemerAddress,
+          actions: [
+            {
+              actionTarget: COUNTER_ADDRESS,
+              actionTargetSelector: toFunctionSelector(
+                getAbiItem({ abi: CounterAbi, name: "incrementNumber" })
+              ),
+              actionPolicies: [getSudoPolicy()]
+            }
+          ],
+          chainId: BigInt(chain.id)
+        },
+        {
+          redeemer: redeemerAddress,
+          actions: [
+            {
+              actionTarget: COUNTER_ADDRESS,
+              actionTargetSelector: toFunctionSelector(
+                getAbiItem({ abi: CounterAbi, name: "incrementNumber" })
+              ),
+              actionPolicies: [getSudoPolicy()]
+            }
+          ],
+          // for the chains different from the smart sessions client chain,
+          // it is required to pass the account instance for this chain id
+          account: secondChainNexusAccount
         }
-      ]
+      ])
+  })
+
+  test("use a permission with typed data sign", async () => {
+    const counterBefore = await publicClient.readContract({
+      address: COUNTER_ADDRESS,
+      abi: parseAbi(["function getNumber() view returns (uint256)"]),
+      functionName: "getNumber"
     })
+
+    const emulatedAccount = await toNexusAccount({
+      accountAddress: nexusAccount.address,
+      signer: redeemerAccount,
+      chain,
+      transport: http(infra.network.rpcUrl)
+    })
+
+    const emulatedClient = createSmartAccountClient({
+      account: emulatedAccount,
+      transport: http(bundlerUrl),
+      mock: true
+    })
+
+    const smartSessionsClient = emulatedClient.extend(smartSessionActions())
+
+    const userOpHashTypedDataSignOne = await smartSessionsClient.usePermission({
+      sessionDetailsArray: sessionDetailsTypedDataSign,
+      calls: [
+        {
+          to: COUNTER_ADDRESS,
+          data: toFunctionSelector(
+            getAbiItem({ abi: CounterAbi, name: "incrementNumber" })
+          )
+        }
+      ],
+      mode: "ENABLE_AND_USE"
+    })
+    const receiptTypedDataSignOne =
+      await nexusClient.waitForUserOperationReceipt({
+        hash: userOpHashTypedDataSignOne
+      })
+    if (!receiptTypedDataSignOne.success) {
+      throw new Error("Smart sessions module validation failed")
+    }
+
+    const counterAfter = await publicClient.readContract({
+      address: COUNTER_ADDRESS,
+      abi: CounterAbi,
+      functionName: "getNumber"
+    })
+    expect(counterAfter).toBe(counterBefore + 1n)
+  })
+
+  test("use a permission with typed data sign for a second chain", async () => {
+    const counterBefore = await secondChainPublicClient.readContract({
+      address: COUNTER_ADDRESS,
+      abi: CounterAbi,
+      functionName: "getNumber"
+    })
+
+    const emulatedAccount = await toNexusAccount({
+      accountAddress: secondChainNexusAccount.address,
+      signer: redeemerAccount,
+      chain: secondChain,
+      transport: http(secondInfra.network.rpcUrl)
+    })
+
+    const emulatedClient = createSmartAccountClient({
+      account: emulatedAccount,
+      transport: http(secondBundlerUrl),
+      mock: true
+    })
+
+    const smartSessionsClient = emulatedClient.extend(smartSessionActions())
+
+    const userOpHashTypedDataSignSecondChain =
+      await smartSessionsClient.usePermission({
+        sessionDetailsArray: sessionDetailsTypedDataSign,
+        calls: [
+          {
+            to: COUNTER_ADDRESS,
+            data: toFunctionSelector(
+              getAbiItem({ abi: CounterAbi, name: "incrementNumber" })
+            )
+          }
+        ],
+        mode: "ENABLE_AND_USE"
+      })
+
+    const receiptTypedDataSignSecondChain =
+      await secondChainNexusClient.waitForUserOperationReceipt({
+        hash: userOpHashTypedDataSignSecondChain
+      })
+    expect(receiptTypedDataSignSecondChain.success).toBe(true)
+
+    const counterAfter = await secondChainPublicClient.readContract({
+      address: COUNTER_ADDRESS,
+      abi: CounterAbi,
+      functionName: "getNumber"
+    })
+    expect(counterAfter).toBe(counterBefore + 1n)
+  })
+
+  test("use a permission with typed data sign a second time", async () => {
+    const emulatedAccount = await toNexusAccount({
+      accountAddress: nexusAccount.address,
+      signer: redeemerAccount,
+      chain,
+      transport: http(infra.network.rpcUrl)
+    })
+
+    const emulatedClient = createSmartAccountClient({
+      account: emulatedAccount,
+      transport: http(bundlerUrl),
+      mock: true
+    })
+
+    const smartSessionsClient = emulatedClient.extend(smartSessionActions())
+
+    const userOpHashTwoTypedDataSign = await smartSessionsClient.usePermission({
+      sessionDetailsArray: sessionDetailsTypedDataSign,
+      calls: [
+        {
+          to: COUNTER_ADDRESS,
+          data: toFunctionSelector(
+            getAbiItem({ abi: CounterAbi, name: "incrementNumber" })
+          )
+        }
+      ],
+      mode: "USE"
+    })
+
+    const receiptTwoTypedDataSign =
+      await nexusClient.waitForUserOperationReceipt({
+        hash: userOpHashTwoTypedDataSign
+      })
+    expect(receiptTwoTypedDataSign.success).toBe(true)
+  })
+
+  test("grant a permission with personal sign", async () => {
+    const smartSessionsClient = nexusClient.extend(smartSessionActions())
+    sessionDetails = await smartSessionsClient.grantPermissionPersonalSign([
+      {
+        redeemer: redeemerAddress,
+        actions: [
+          {
+            actionTarget: COUNTER_ADDRESS,
+            actionTargetSelector: toFunctionSelector(
+              getAbiItem({ abi: CounterAbi, name: "incrementNumber" })
+            ),
+            actionPolicies: [getSudoPolicy()]
+          }
+        ]
+      },
+      // decrement the counter as a separate permission
+      {
+        redeemer: redeemerAddress,
+        actions: [
+          {
+            actionTarget: COUNTER_ADDRESS,
+            actionTargetSelector: toFunctionSelector(
+              getAbiItem({ abi: CounterAbi, name: "decrementNumber" })
+            ),
+            actionPolicies: [getSudoPolicy()]
+          }
+        ]
+      }
+    ])
   })
 
   test("use a permission", async () => {
@@ -123,8 +366,15 @@ describe("modules.toSmartSessionsModule", () => {
     const smartSessionsClient = emulatedClient.extend(smartSessionActions())
 
     const userOpHashOne = await smartSessionsClient.usePermission({
-      sessionDetails,
-      calls: [{ to: COUNTER_ADDRESS, data: "0x273ea3e3" }],
+      sessionDetailsArray: sessionDetails,
+      calls: [
+        {
+          to: COUNTER_ADDRESS,
+          data: toFunctionSelector(
+            getAbiItem({ abi: CounterAbi, name: "incrementNumber" })
+          )
+        }
+      ],
       mode: "ENABLE_AND_USE"
     })
     const receiptOne = await nexusClient.waitForUserOperationReceipt({
@@ -133,6 +383,43 @@ describe("modules.toSmartSessionsModule", () => {
     if (!receiptOne.success) {
       throw new Error("Smart sessions module validation failed")
     }
+  })
+
+  test("use a second permission on the same chain should work with index", async () => {
+    const emulatedAccount = await toNexusAccount({
+      accountAddress: nexusAccount.address,
+      signer: redeemerAccount,
+      chain,
+      transport: http(infra.network.rpcUrl)
+    })
+
+    const emulatedClient = createSmartAccountClient({
+      account: emulatedAccount,
+      transport: http(bundlerUrl),
+      mock: true
+    })
+
+    const smartSessionsClient = emulatedClient.extend(smartSessionActions())
+
+    // with index, it would use the second permission
+    // which allows 0x871cc9d4
+    const userOpHashWithIndex = await smartSessionsClient.usePermission({
+      sessionDetailsArray: sessionDetails,
+      calls: [
+        {
+          to: COUNTER_ADDRESS,
+          data: toFunctionSelector(
+            getAbiItem({ abi: CounterAbi, name: "decrementNumber" })
+          )
+        }
+      ],
+      mode: "ENABLE_AND_USE",
+      indexWithinChain: 1 // starts from 0
+    })
+    const receiptWithIndex = await nexusClient.waitForUserOperationReceipt({
+      hash: userOpHashWithIndex
+    })
+    expect(receiptWithIndex.success).toBe(true)
   })
 
   test("use a permission a second time", async () => {
@@ -152,8 +439,15 @@ describe("modules.toSmartSessionsModule", () => {
     const smartSessionsClient = emulatedClient.extend(smartSessionActions())
 
     const userOpHashTwo = await smartSessionsClient.usePermission({
-      sessionDetails,
-      calls: [{ to: COUNTER_ADDRESS, data: "0x273ea3e3" }],
+      sessionDetailsArray: sessionDetails,
+      calls: [
+        {
+          to: COUNTER_ADDRESS,
+          data: toFunctionSelector(
+            getAbiItem({ abi: CounterAbi, name: "incrementNumber" })
+          )
+        }
+      ],
       mode: "USE"
     })
 

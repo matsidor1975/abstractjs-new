@@ -14,7 +14,7 @@ import {
   runtimeERC20BalanceOf,
   runtimeNonceOf
 } from "../../../modules/utils/composabilityCalls"
-import type { GrantPermissionResponse } from "../../../modules/validators/smartSessions/decorators/grantPermission"
+import type { GrantPermissionResponseEntry } from "../../../modules/validators/smartSessions/decorators/grantPermission"
 import createHttpClient, { type Url } from "../../createHttpClient"
 import {
   type BaseMeeClient,
@@ -423,7 +423,7 @@ export interface MeeFilledUserOpDetails {
   /** Cleanup userop flag - Special user op */
   isCleanUpUserOp?: boolean
   /** Optional Session details for redeeming a permission */
-  sessionDetails?: GrantPermissionResponse
+  sessionDetails?: GrantPermissionResponseEntry
   /** Short encoding flag @see QuoteRequest.shortEncoding
    *  It is expected to be set here because it is returned by the node
    *  and the node always knows if the given superTxn entry's hash

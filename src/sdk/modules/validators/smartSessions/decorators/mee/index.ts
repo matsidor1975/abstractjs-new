@@ -3,7 +3,8 @@ import type { ModularSmartAccount } from "../../../../utils/Types"
 import {
   type GrantMeePermissionParams,
   type GrantMeePermissionPayload,
-  grantMeePermission
+  grantMeePermissionPersonalSign,
+  grantMeePermissionTypedDataSign
 } from "./grantMeePermission"
 import {
   type PrepareForPermissionsParams,
@@ -23,7 +24,12 @@ export type MeeSessionActions = {
   prepareForPermissions: (
     params: PrepareForPermissionsParams
   ) => Promise<PrepareForPermissionsPayload>
-  grantPermission: <
+  grantPermissionPersonalSign: <
+    TModularSmartAccount extends ModularSmartAccount | undefined
+  >(
+    params: GrantMeePermissionParams<TModularSmartAccount>
+  ) => Promise<GrantMeePermissionPayload>
+  grantPermissionTypedDataSign: <
     TModularSmartAccount extends ModularSmartAccount | undefined
   >(
     params: GrantMeePermissionParams<TModularSmartAccount>
@@ -44,13 +50,20 @@ export const meeSessionActions = (
   return {
     prepareForPermissions: (params: PrepareForPermissionsParams) =>
       prepareForPermissions(meeClient, params),
-    grantPermission: (params: GrantMeePermissionParams<ModularSmartAccount>) =>
-      grantMeePermission(meeClient, params),
+    grantPermissionPersonalSign: (
+      params: GrantMeePermissionParams<ModularSmartAccount>
+    ) => grantMeePermissionPersonalSign(meeClient, params),
+    grantPermissionTypedDataSign: (
+      params: GrantMeePermissionParams<ModularSmartAccount>
+    ) => grantMeePermissionTypedDataSign(meeClient, params),
     usePermission: (params: UseMeePermissionParams) =>
       useMeePermission(meeClient, params)
   }
 }
 
-export { grantMeePermission } from "./grantMeePermission"
+export {
+  grantMeePermissionPersonalSign,
+  grantMeePermissionTypedDataSign
+} from "./grantMeePermission"
 export { useMeePermission } from "./useMeePermission"
 export { prepareForPermissions } from "./prepareForPermissions"
