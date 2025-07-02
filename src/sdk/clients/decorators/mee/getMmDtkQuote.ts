@@ -85,10 +85,6 @@ export const getMmDtkQuote = async (
     ...rest
   } = parameters
 
-  if (trigger.call) {
-    throw new Error("Custom call trigger is not supported for permit quotes")
-  }
-
   const resolvedInstructions = await resolveInstructions(instructions)
 
   const sender = delegatorSmartAccount.address
