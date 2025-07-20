@@ -639,3 +639,4 @@
 2025-05-22 18:50:35 add tests
 2025-10-09 06:14:23 better error handling
 2025-06-15 17:26:57 enhance logging
+2025-07-20 06:40:46 fix build error
