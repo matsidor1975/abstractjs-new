@@ -24,21 +24,20 @@ import {
   type NetworkConfig,
   getAllowance,
   getBalance,
-  pKey,
   setAllowance
 } from "../../../../test/testUtils"
 import {
   type MultichainSmartAccount,
   toMultichainNexusAccount
 } from "../../../account/toMultiChainNexusAccount"
-import { FORWARDER_ADDRESS } from "../../../constants"
-import { mcUSDC, mcUSDT, testnetMcUSDC } from "../../../constants/tokens"
+import { DEFAULT_MEE_VERSION } from "../../../constants"
+import { mcUSDC, mcUSDT } from "../../../constants/tokens"
+import { getMEEVersion } from "../../../modules"
 import {
   DEFAULT_MEE_TESTNET_SPONSORSHIP_CHAIN_ID,
   DEFAULT_MEE_TESTNET_SPONSORSHIP_PAYMASTER_ACCOUNT,
   DEFAULT_MEE_TESTNET_SPONSORSHIP_TOKEN_ADDRESS,
   DEFAULT_PATHFINDER_URL,
-  DEFAULT_STAGING_PATHFINDER_URL,
   type MeeClient,
   createMeeClient
 } from "../../createMeeClient"
@@ -93,10 +92,20 @@ describe.runIf(runPaidTests)("mee.signOnChainQuote", () => {
     }
 
     mcNexus = await toMultichainNexusAccount({
-      chains: [paymentChain, targetChain],
-      transports: [paymentChainTransport, targetChainTransport],
       signer: eoaAccount,
-      index
+      index,
+      chainConfigurations: [
+        {
+          chain: paymentChain,
+          transport: paymentChainTransport,
+          version: getMEEVersion(DEFAULT_MEE_VERSION)
+        },
+        {
+          chain: targetChain,
+          transport: targetChainTransport,
+          version: getMEEVersion(DEFAULT_MEE_VERSION)
+        }
+      ]
     })
 
     meeClient = await createMeeClient({ account: mcNexus })
@@ -385,10 +394,15 @@ describe.runIf(runPaidTests)("mee.signOnChainQuote - testnet", () => {
     eoaAccount = network.account!
     chain = network.chain
     mcNexus = await toMultichainNexusAccount({
-      chains: [chain],
-      transports: [http(network.rpcUrl)],
       signer: eoaAccount,
-      index: 1n
+      index: 1n,
+      chainConfigurations: [
+        {
+          chain: chain,
+          transport: http(network.rpcUrl),
+          version: getMEEVersion(DEFAULT_MEE_VERSION)
+        }
+      ]
     })
 
     walletClient = createWalletClient({
@@ -404,7 +418,6 @@ describe.runIf(runPaidTests)("mee.signOnChainQuote - testnet", () => {
 
     meeClient = await createMeeClient({
       account: mcNexus,
-      url: DEFAULT_STAGING_PATHFINDER_URL,
       apiKey: "mee_3Zmc7H6Pbd5wUfUGu27aGzdf"
     })
   })
@@ -674,12 +687,14 @@ describe.runIf(runPaidTests)("mee.signOnChainQuote - testnet", () => {
   })
 
   test("should sign a quote using signOnChainQuote with modular signing functions", async () => {
+    const trigger: Trigger = {
+      chainId: chain.id,
+      tokenAddress: "0xb394e82fd251de530c9d71cbee9527a4cf690e57",
+      amount: 1n
+    }
+
     const fusionQuote = await getFusionQuote(meeClient, {
-      trigger: {
-        chainId: chain.id,
-        tokenAddress: "0xb394e82fd251de530c9d71cbee9527a4cf690e57",
-        amount: 1n
-      },
+      trigger,
       instructions: [
         mcNexus.build({
           type: "default",
@@ -724,11 +739,14 @@ describe.runIf(runPaidTests)("mee.signOnChainQuote - testnet", () => {
 
     expect(quoteType).toEqual("onchain")
 
+    const { version } = mcNexus.deploymentOn(trigger.chainId, true)
+
     const { executablePayload, metadata } =
       await prepareExecutableOnChainQuotePayload(
         fusionQuote,
         eoaAccount.address,
-        mcNexus.addressOn(chain.id, true)
+        mcNexus.addressOn(chain.id, true),
+        version
       )
 
     const hash = await walletClient.sendTransaction({

@@ -13,18 +13,15 @@ import {
   type MultichainSmartAccount,
   toMultichainNexusAccount
 } from "../../../account/toMultiChainNexusAccount"
+import { DEFAULT_MEE_VERSION } from "../../../constants"
 import { testnetMcUSDC } from "../../../constants"
-import {
-  DEFAULT_STAGING_PATHFINDER_URL,
-  type MeeClient,
-  createMeeClient
-} from "../../createMeeClient"
+import { getMEEVersion } from "../../../modules"
+import { type MeeClient, createMeeClient } from "../../createMeeClient"
 import type { Instruction } from "./getQuote"
 import { getQuoteType } from "./getQuoteType"
-import {
+import signQuote, {
   formatSignedQuotePayload,
-  prepareSignableQuotePayload,
-  signQuote
+  prepareSignableQuotePayload
 } from "./signQuote"
 
 describe("mee.signQuote", () => {
@@ -47,14 +44,18 @@ describe("mee.signQuote", () => {
     })
 
     mcNexus = await toMultichainNexusAccount({
-      chains: [chain],
-      transports: [http(network.rpcUrl)],
-      signer: eoaAccount
+      signer: eoaAccount,
+      chainConfigurations: [
+        {
+          chain: chain,
+          transport: http(network.rpcUrl),
+          version: getMEEVersion(DEFAULT_MEE_VERSION)
+        }
+      ]
     })
 
     meeClient = await createMeeClient({
       account: mcNexus,
-      url: DEFAULT_STAGING_PATHFINDER_URL,
       apiKey: "mee_3ZhZhHx3hmKrBQxacr283dHt"
     })
   })

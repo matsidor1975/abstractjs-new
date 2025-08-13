@@ -7,8 +7,8 @@ import {
   zeroAddress
 } from "viem"
 import { encodeFunctionData } from "viem"
+import type { MEEVersionConfig } from "../../../account"
 import type { MultichainSmartAccount } from "../../../account/toMultiChainNexusAccount"
-import { FORWARDER_ADDRESS } from "../../../constants"
 import { ForwarderAbi } from "../../../constants/abi/ForwarderAbi"
 import type { AnyData } from "../../../modules"
 import type { ComposableCall } from "../../../modules/utils/composabilityCalls"
@@ -42,11 +42,13 @@ export const ON_CHAIN_PREFIX = "0x177eee01"
 const generateTriggerCallFromTrigger = async ({
   trigger,
   spender,
-  recipient
+  recipient,
+  version
 }: {
   trigger: Trigger
   spender: Address
   recipient: Address
+  version: MEEVersionConfig
 }) => {
   let triggerCall: AbstractCall | ComposableCall
   // build custom call
@@ -61,7 +63,7 @@ const generateTriggerCallFromTrigger = async ({
     })
 
     const ethForwardCall: AbstractCall = {
-      to: FORWARDER_ADDRESS,
+      to: version.ethForwarderAddress,
       data: forwardCalldata,
       value: trigger.amount
     }
@@ -125,14 +127,16 @@ const generateTriggerCallFromTrigger = async ({
 export const prepareExecutableOnChainQuotePayload = async (
   quoteParams: GetOnChainQuotePayload,
   spender: Address,
-  recipient: Address
+  recipient: Address,
+  version: MEEVersionConfig
 ) => {
   const { quote, trigger } = quoteParams
 
   const triggerCall = await generateTriggerCallFromTrigger({
     trigger,
     spender,
-    recipient
+    recipient,
+    version
   })
 
   // This will always be a non-composable transaction, so composability is not a concern here.
@@ -210,10 +214,11 @@ export const signOnChainQuote = async (
     fusionQuote: { trigger }
   } = params
 
-  const { walletClient, address: spender } = account_.deploymentOn(
-    trigger.chainId,
-    true
-  )
+  const {
+    walletClient,
+    address: spender,
+    version
+  } = account_.deploymentOn(trigger.chainId, true)
 
   // By default the trigger amount will be deposited to sca account.
   // if a custom recipient is defined ? It will deposit to the recipient address
@@ -223,7 +228,8 @@ export const signOnChainQuote = async (
     await prepareExecutableOnChainQuotePayload(
       params.fusionQuote,
       spender, // In terms of token approval. Spender will be used for approving for SCA
-      recipient // In terms of native token deposit, this recipient will be used for target deposit address
+      recipient, // In terms of native token deposit, this recipient will be used for target deposit address
+      version
     )
 
   // @ts-ignore

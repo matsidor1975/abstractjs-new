@@ -31,13 +31,14 @@ import {
   type MultichainSmartAccount,
   toMultichainNexusAccount
 } from "../../../account/toMultiChainNexusAccount"
-import { PERMIT_TYPEHASH, TokenWithPermitAbi } from "../../../constants"
-import { mcUSDC, testnetMcUSDC } from "../../../constants/tokens"
 import {
-  DEFAULT_STAGING_PATHFINDER_URL,
-  type MeeClient,
-  createMeeClient
-} from "../../createMeeClient"
+  DEFAULT_MEE_VERSION,
+  PERMIT_TYPEHASH,
+  TokenWithPermitAbi
+} from "../../../constants"
+import { mcUSDC, testnetMcUSDC } from "../../../constants/tokens"
+import { getMEEVersion } from "../../../modules"
+import { type MeeClient, createMeeClient } from "../../createMeeClient"
 import { executeSignedQuote } from "./executeSignedQuote"
 import getFusionQuote from "./getFusionQuote"
 import getPaymentToken, { type GetPaymentTokenPayload } from "./getPaymentToken"
@@ -87,9 +88,19 @@ describe("mee.signPermitQuote", () => {
     }
 
     mcNexus = await toMultichainNexusAccount({
-      chains: [paymentChain, targetChain],
       signer: eoaAccount,
-      transports: [paymentChainTransport, targetChainTransport],
+      chainConfigurations: [
+        {
+          chain: paymentChain,
+          transport: paymentChainTransport,
+          version: getMEEVersion(DEFAULT_MEE_VERSION)
+        },
+        {
+          chain: targetChain,
+          transport: targetChainTransport,
+          version: getMEEVersion(DEFAULT_MEE_VERSION)
+        }
+      ],
       index
     })
 
@@ -236,14 +247,18 @@ describe.runIf(runPaidTests)("mee.signPermitQuote - testnet", () => {
     })
 
     mcNexus = await toMultichainNexusAccount({
-      chains: [chain],
-      transports: [http(network.rpcUrl)],
       signer: eoaAccount,
-      index: 1n
+      index: 1n,
+      chainConfigurations: [
+        {
+          chain: chain,
+          transport: http(network.rpcUrl),
+          version: getMEEVersion(DEFAULT_MEE_VERSION)
+        }
+      ]
     })
     meeClient = await createMeeClient({
       account: mcNexus,
-      url: DEFAULT_STAGING_PATHFINDER_URL,
       apiKey: "mee_3ZhZhHx3hmKrBQxacr283dHt"
     })
   })

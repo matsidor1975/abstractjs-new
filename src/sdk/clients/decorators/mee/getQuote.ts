@@ -1,4 +1,4 @@
-import { type Address, type Hex, type OneOf, zeroAddress } from "viem"
+import type { Address, Hex, OneOf } from "viem"
 import type { SignAuthorizationReturnType } from "viem/accounts"
 import { buildComposable } from "../../../account/decorators"
 import type { MultichainSmartAccount } from "../../../account/toMultiChainNexusAccount"
@@ -21,8 +21,7 @@ import {
   DEFAULT_MEE_SPONSORSHIP_CHAIN_ID,
   DEFAULT_MEE_SPONSORSHIP_PAYMASTER_ACCOUNT,
   DEFAULT_MEE_SPONSORSHIP_TOKEN_ADDRESS,
-  DEFAULT_PATHFINDER_URL,
-  DEFAULT_STAGING_PATHFINDER_URL
+  DEFAULT_PATHFINDER_URL
 } from "../../createMeeClient"
 
 export const USEROP_MIN_EXEC_WINDOW_DURATION = 180
@@ -668,7 +667,7 @@ export const getQuote = async (
   if (sponsorship && sponsorshipOptions) {
     const isSelfHostedSponsorship = ![
       DEFAULT_PATHFINDER_URL,
-      DEFAULT_STAGING_PATHFINDER_URL
+      DEFAULT_PATHFINDER_URL
     ].includes(sponsorshipOptions.url)
 
     if (isSelfHostedSponsorship) {
@@ -706,7 +705,7 @@ const preparePaymentInfo = async (
     sponsorship,
     sponsorshipOptions,
     shortEncodingSuperTxn,
-    moduleAddress = zeroAddress as Address,
+    moduleAddress: validatorAddress,
     paymentVerificationGasLimit
   } = parameters
 
@@ -788,7 +787,7 @@ const preparePaymentInfo = async (
 
     const [nonce, isAccountDeployed, initCode] = await Promise.all([
       validPaymentAccount.getNonceWithKey(validPaymentAccount.address, {
-        moduleAddress
+        moduleAddress: validatorAddress
       }),
       validPaymentAccount.isDeployed(),
       validPaymentAccount.getInitCode()
@@ -834,7 +833,7 @@ const prepareUserOps = async (
   account: MultichainSmartAccount,
   instructions: Instruction[],
   isCleanUpUserOps = false,
-  moduleAddress?: Address
+  validatorAddress?: Address
 ) => {
   return await Promise.all(
     instructions.map((userOp) => {
@@ -868,7 +867,9 @@ const prepareUserOps = async (
 
       return Promise.all([
         callsPromise,
-        deployment.getNonceWithKey(accountAddress, { moduleAddress }),
+        deployment.getNonceWithKey(accountAddress, {
+          moduleAddress: validatorAddress
+        }),
         deployment.isDeployed(),
         deployment.getInitCode(),
         deployment.address,

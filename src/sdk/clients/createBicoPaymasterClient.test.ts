@@ -19,6 +19,8 @@ import { getBalance, killNetwork } from "../../test/testUtils"
 import type { NetworkConfig } from "../../test/testUtils"
 import { type NexusAccount, toNexusAccount } from "../account/toNexusAccount"
 import { BICONOMY_TOKEN_PAYMASTER } from "../account/utils/Constants"
+import { DEFAULT_MEE_VERSION } from "../constants"
+import { getMEEVersion } from "../modules"
 import {
   type NexusClient,
   createSmartAccountClient
@@ -79,8 +81,11 @@ describe.skipIf(!paymasterTruthy())("bico.paymaster", async () => {
 
     nexusAccount = await toNexusAccount({
       signer: account,
-      chain,
-      transport: http(network.rpcUrl)
+      chainConfiguration: {
+        chain,
+        transport: http(network.rpcUrl),
+        version: getMEEVersion(DEFAULT_MEE_VERSION)
+      }
     })
 
     nexusAccountAddress = await nexusAccount.getAddress()

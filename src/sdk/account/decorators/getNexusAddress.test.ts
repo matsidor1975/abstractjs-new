@@ -16,6 +16,8 @@ import {
   type NexusClient,
   createBicoBundlerClient
 } from "../../clients/createBicoBundlerClient"
+import { DEFAULT_MEE_VERSION } from "../../constants"
+import { getMEEVersion } from "../../modules"
 import { type NexusAccount, toNexusAccount } from "../toNexusAccount"
 
 describe("account.decorators.getNexusAddress.local", () => {
@@ -39,9 +41,12 @@ describe("account.decorators.getNexusAddress.local", () => {
     testClient = toTestClient(chain, getTestAccount(5))
 
     nexusAccount = await toNexusAccount({
-      chain,
-      transport: http(network.rpcUrl),
-      signer: eoaAccount
+      signer: eoaAccount,
+      chainConfiguration: {
+        chain,
+        transport: http(network.rpcUrl),
+        version: getMEEVersion(DEFAULT_MEE_VERSION)
+      }
     })
 
     nexusClient = createBicoBundlerClient({
@@ -91,9 +96,12 @@ describe("account.decorators.getNexusAddress.testnet", () => {
 
   test("init testnet network", async () => {
     const account = await toNexusAccount({
-      chain,
-      transport: http(network.rpcUrl),
-      signer: eoaAccount
+      signer: eoaAccount,
+      chainConfiguration: {
+        chain,
+        transport: http(network.rpcUrl),
+        version: getMEEVersion(DEFAULT_MEE_VERSION)
+      }
     })
 
     const nexusClient = createBicoBundlerClient({
