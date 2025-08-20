@@ -15,6 +15,7 @@ import {
   TEST_BLOCK_CONFIRMATIONS,
   toNetwork
 } from "../../../../test/testSetup"
+import { testnetMcTestUSDCP } from "../../../../test/testTokens"
 import {
   type NetworkConfig,
   getRandomAccountIndex
@@ -23,11 +24,7 @@ import {
   type MultichainSmartAccount,
   toMultichainNexusAccount
 } from "../../../account"
-import {
-  MEEVersion,
-  NexusBootstrapAbi,
-  testnetMcUSDC
-} from "../../../constants"
+import { MEEVersion, NexusBootstrapAbi } from "../../../constants"
 import { getMEEVersion } from "../../../modules"
 import { createBicoBundlerClient } from "../../createBicoBundlerClient"
 import { createMeeClient } from "../../createMeeClient"
@@ -58,7 +55,7 @@ describe("mee.upgradeSmartAccount", () => {
     const fusionQuote = await meeClient.getFusionQuote({
       trigger: {
         chainId: chain.id,
-        tokenAddress: testnetMcUSDC.addressOn(chain.id),
+        tokenAddress: testnetMcTestUSDCP.addressOn(chain.id),
         amount: 1n
       },
       instructions: [
@@ -76,7 +73,7 @@ describe("mee.upgradeSmartAccount", () => {
         })
       ],
       feeToken: {
-        address: testnetMcUSDC.addressOn(chain.id),
+        address: testnetMcTestUSDCP.addressOn(chain.id),
         chainId: chain.id
       }
     })
@@ -150,7 +147,7 @@ describe("mee.upgradeSmartAccount", () => {
   //   const fusionQuote = await meeClient.getFusionQuote({
   //     trigger: {
   //       chainId: chain.id,
-  //       tokenAddress: testnetMcUSDC.addressOn(chain.id),
+  //       tokenAddress: testnetMcTestUSDCP.addressOn(chain.id),
   //       amount: 1n,
   //     },
   //     instructions: [
@@ -169,7 +166,7 @@ describe("mee.upgradeSmartAccount", () => {
   //       }),
   //     ],
   //     feeToken: {
-  //       address: testnetMcUSDC.addressOn(chain.id),
+  //       address: testnetMcTestUSDCP.addressOn(chain.id),
   //       chainId: chain.id,
   //     },
   //   });

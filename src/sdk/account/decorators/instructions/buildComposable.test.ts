@@ -22,6 +22,7 @@ import { beforeAll, describe, expect, inject, it } from "vitest"
 import { COMPOSABILITY_RUNTIME_TRANSFER_ABI } from "../../../../test/__contracts/abi/ComposabilityRuntimeTransferAbi"
 import { FOO_CONTRACT_ABI } from "../../../../test/__contracts/abi/FooContractAbi"
 import { TEST_BLOCK_CONFIRMATIONS, toNetwork } from "../../../../test/testSetup"
+import { testnetMcTestUSDCP } from "../../../../test/testTokens"
 import type { NetworkConfig } from "../../../../test/testUtils"
 import {
   type MeeClient,
@@ -36,7 +37,6 @@ import {
   UniswapSwapRouterAbi,
   testnetMcUniswapSwapRouter
 } from "../../../constants"
-import { testnetMcUSDC } from "../../../constants/tokens"
 import {
   getMEEVersion,
   greaterThanOrEqualTo,
@@ -50,9 +50,9 @@ import { getMeeScanLink, getMultichainContract } from "../../utils"
 import buildComposable from "./buildComposable"
 
 // @ts-ignore
-const { runPaidTests } = inject("settings")
+const { runLifecycleTests } = inject("settings")
 
-describe.runIf(runPaidTests)("mee.buildComposable", () => {
+describe.runIf(runLifecycleTests)("mee.buildComposable", () => {
   let network: NetworkConfig
   let eoaAccount: LocalAccount
 
@@ -64,7 +64,6 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
   let runtimeTransferAddress: Address
   let fooContractAddress: Address
   let chain: Chain
-
   beforeAll(async () => {
     network = await toNetwork("TESTNET_FROM_ENV_VARS")
     eoaAccount = network.account!
@@ -90,13 +89,12 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
     meeClient = await createMeeClient({
       account: mcNexus
     })
-    tokenAddress = testnetMcUSDC.addressOn(chain.id)
-
+    tokenAddress = testnetMcTestUSDCP.addressOn(chain.id)
     console.log("mcNexus", mcNexus.addressOn(chain.id, true))
     console.log("eoa.address", eoaAccount.address)
 
     // Mock testing contract for composability testing
-    runtimeTransferAddress = "0xb46e85b8Bd24D1dca043811D5b8B18b2a8c5F95D"
+    runtimeTransferAddress = "0x7c3b315E1d72CFdB8999A68a12e87fc3cc490fec"
     fooContractAddress = "0x40Ad19a280cdD7649981A7c3C76A5D725840efCF"
   })
 
@@ -114,7 +112,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
             mcNexus.addressOn(chain.id, true),
             runtimeERC20BalanceOf({
               targetAddress: eoaAccount.address,
-              tokenAddress: testnetMcUSDC.addressOn(chain.id),
+              tokenAddress,
               constraints: [greaterThanOrEqualTo(parseUnits("0.01", 6))]
             })
           ],
@@ -133,7 +131,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
 
     const trigger = {
       chainId: chain.id,
-      tokenAddress: testnetMcUSDC.addressOn(chain.id),
+      tokenAddress,
       amount: amountToSupply
     }
 
@@ -152,7 +150,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
       ],
       feeToken: {
         chainId: chain.id,
-        address: testnetMcUSDC.addressOn(chain.id)
+        address: tokenAddress
       }
     })
 
@@ -174,7 +172,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
       type: "transfer",
       data: {
         recipient: runtimeTransferAddress as Address,
-        tokenAddress: testnetMcUSDC.addressOn(chain.id),
+        tokenAddress,
         amount: amountToTransfer,
         chainId: chain.id
       }
@@ -187,10 +185,11 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
         abi: COMPOSABILITY_RUNTIME_TRANSFER_ABI as Abi,
         functionName: "transferFunds",
         args: [
+          tokenAddress,
           eoaAccount.address,
           runtimeERC20BalanceOf({
             targetAddress: runtimeTransferAddress,
-            tokenAddress: testnetMcUSDC.addressOn(chain.id)
+            tokenAddress
           })
         ],
         chainId: chain.id
@@ -209,11 +208,10 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
         instructions: batchedInstructions,
         feeToken: {
           chainId: chain.id,
-          address: testnetMcUSDC.addressOn(chain.id)
+          address: tokenAddress
         }
       })
     })
-
     const { transactionStatus: transactionStatusTwo, explorerLinks } =
       await meeClient.waitForSupertransactionReceipt({
         hash: hashTwo,
@@ -230,7 +228,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
 
     const trigger = {
       chainId: chain.id,
-      tokenAddress: testnetMcUSDC.addressOn(chain.id),
+      tokenAddress,
       amount: amountToSupply
     }
 
@@ -250,7 +248,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
         ],
         feeToken: {
           chainId: chain.id,
-          address: testnetMcUSDC.addressOn(chain.id)
+          address: tokenAddress
         }
       })
     })
@@ -267,7 +265,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
       type: "transfer",
       data: {
         recipient: runtimeTransferAddress as Address,
-        tokenAddress: testnetMcUSDC.addressOn(chain.id),
+        tokenAddress,
         amount: amountToTransfer,
         chainId: chain.id
       }
@@ -280,10 +278,11 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
         abi: COMPOSABILITY_RUNTIME_TRANSFER_ABI as Abi,
         functionName: "transferFunds",
         args: [
+          tokenAddress,
           eoaAccount.address,
           runtimeERC20BalanceOf({
             targetAddress: runtimeTransferAddress,
-            tokenAddress: testnetMcUSDC.addressOn(chain.id)
+            tokenAddress
           })
         ],
         chainId: chain.id
@@ -299,7 +298,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
         ],
         feeToken: {
           chainId: chain.id,
-          address: testnetMcUSDC.addressOn(chain.id)
+          address: tokenAddress
         }
       })
     })
@@ -321,7 +320,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
 
     const trigger = {
       chainId: chain.id,
-      tokenAddress: testnetMcUSDC.addressOn(chain.id),
+      tokenAddress,
       amount: amountToSupply
     }
 
@@ -329,7 +328,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
       type: "transfer",
       data: {
         recipient: runtimeTransferAddress as Address,
-        tokenAddress: testnetMcUSDC.addressOn(chain.id),
+        tokenAddress,
         amount: amountToSupply,
         chainId: chain.id
       }
@@ -342,10 +341,11 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
         abi: COMPOSABILITY_RUNTIME_TRANSFER_ABI as Abi,
         functionName: "transferFunds",
         args: [
+          tokenAddress,
           eoaAccount.address,
           runtimeERC20BalanceOf({
             targetAddress: runtimeTransferAddress,
-            tokenAddress: testnetMcUSDC.addressOn(chain.id)
+            tokenAddress
           })
         ],
         chainId: chain.id
@@ -357,7 +357,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
       instructions: [...transferInstruction, ...instructions, ...instructions],
       feeToken: {
         chainId: chain.id,
-        address: testnetMcUSDC.addressOn(chain.id)
+        address: tokenAddress
       }
     })
 
@@ -378,7 +378,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
 
     const trigger = {
       chainId: chain.id,
-      tokenAddress: testnetMcUSDC.addressOn(chain.id),
+      tokenAddress,
       amount: amountToSupply
     }
 
@@ -386,7 +386,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
       type: "transfer",
       data: {
         recipient: runtimeTransferAddress as Address,
-        tokenAddress: testnetMcUSDC.addressOn(chain.id),
+        tokenAddress,
         amount: amountToSupply,
         chainId: chain.id
       }
@@ -399,10 +399,11 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
         abi: COMPOSABILITY_RUNTIME_TRANSFER_ABI as Abi,
         functionName: "transferFunds",
         args: [
+          tokenAddress,
           eoaAccount.address,
           runtimeERC20BalanceOf({
             targetAddress: runtimeTransferAddress,
-            tokenAddress: testnetMcUSDC.addressOn(chain.id)
+            tokenAddress
           })
         ],
         chainId: chain.id
@@ -422,7 +423,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
         instructions: batchedInstructions,
         feeToken: {
           chainId: chain.id,
-          address: testnetMcUSDC.addressOn(chain.id)
+          address: tokenAddress
         }
       })
     })
@@ -441,7 +442,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
     const amountToSupply = parseUnits("0.1", 6)
 
     const balanceBefore = await publicClient.readContract({
-      address: testnetMcUSDC.addressOn(chain.id),
+      address: tokenAddress,
       abi: erc20Abi,
       functionName: "balanceOf",
       args: [eoaAccount.address]
@@ -449,7 +450,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
 
     const trigger = {
       chainId: chain.id,
-      tokenAddress: testnetMcUSDC.addressOn(chain.id),
+      tokenAddress,
       amount: amountToSupply
     }
 
@@ -457,7 +458,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
       type: "transfer",
       data: {
         recipient: runtimeTransferAddress as Address,
-        tokenAddress: testnetMcUSDC.addressOn(chain.id),
+        tokenAddress,
         amount: amountToSupply,
         chainId: chain.id
       }
@@ -470,10 +471,11 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
         abi: COMPOSABILITY_RUNTIME_TRANSFER_ABI as Abi,
         functionName: "transferFunds",
         args: [
+          tokenAddress,
           eoaAccount.address,
           runtimeERC20BalanceOf({
             targetAddress: runtimeTransferAddress,
-            tokenAddress: testnetMcUSDC.addressOn(chain.id)
+            tokenAddress
           })
         ],
         chainId: chain.id
@@ -486,7 +488,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
         instructions: [transferInstruction, ...instructions],
         feeToken: {
           chainId: chain.id,
-          address: testnetMcUSDC.addressOn(chain.id)
+          address: tokenAddress
         }
       })
     })
@@ -499,7 +501,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
     expect(transactionStatus).to.be.eq("MINED_SUCCESS")
 
     const balanceAfter = await publicClient.readContract({
-      address: testnetMcUSDC.addressOn(chain.id),
+      address: tokenAddress,
       abi: erc20Abi,
       functionName: "balanceOf",
       args: [eoaAccount.address]
@@ -522,7 +524,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
 
     const trigger = {
       chainId: chain.id,
-      tokenAddress: testnetMcUSDC.addressOn(chain.id),
+      tokenAddress,
       amount: amountToSupply
     }
 
@@ -530,7 +532,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
       type: "transfer",
       data: {
         recipient: runtimeTransferAddress as Address,
-        tokenAddress: testnetMcUSDC.addressOn(chain.id),
+        tokenAddress,
         amount: amountToSupply,
         chainId: chain.id
       }
@@ -543,12 +545,13 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
         abi: COMPOSABILITY_RUNTIME_TRANSFER_ABI as Abi,
         functionName: "transferFundsWithStruct",
         args: [
+          tokenAddress,
           runtimeTransferAddress,
           {
             recipient: eoaAccount.address,
             amount: runtimeERC20BalanceOf({
               targetAddress: runtimeTransferAddress,
-              tokenAddress: testnetMcUSDC.addressOn(chain.id),
+              tokenAddress,
               constraints: [greaterThanOrEqualTo(parseUnits("0.01", 6))] // 6 decimals for USDC
             })
           }
@@ -563,7 +566,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
         instructions: [transferInstruction, ...instructions],
         feeToken: {
           chainId: chain.id,
-          address: testnetMcUSDC.addressOn(chain.id)
+          address: tokenAddress
         }
       })
     })
@@ -583,7 +586,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
 
     const trigger = {
       chainId: chain.id,
-      tokenAddress: testnetMcUSDC.addressOn(chain.id),
+      tokenAddress,
       amount: amountToSupply
     }
 
@@ -591,7 +594,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
       type: "transfer",
       data: {
         recipient: runtimeTransferAddress as Address,
-        tokenAddress: testnetMcUSDC.addressOn(chain.id),
+        tokenAddress,
         amount: amountToSupply,
         chainId: chain.id
       }
@@ -604,11 +607,12 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
         abi: COMPOSABILITY_RUNTIME_TRANSFER_ABI as Abi,
         functionName: "transferFundsWithDynamicArray",
         args: [
+          tokenAddress,
           runtimeTransferAddress,
           [runtimeTransferAddress, eoaAccount.address],
           runtimeERC20BalanceOf({
             targetAddress: runtimeTransferAddress,
-            tokenAddress: testnetMcUSDC.addressOn(chain.id),
+            tokenAddress,
             constraints: [greaterThanOrEqualTo(parseUnits("0.01", 6))] // 6 decimals for USDC
           })
         ],
@@ -622,7 +626,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
         instructions: [transferInstruction, ...instructions],
         feeToken: {
           chainId: chain.id,
-          address: testnetMcUSDC.addressOn(chain.id)
+          address: tokenAddress
         }
       })
     })
@@ -642,7 +646,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
 
     const trigger = {
       chainId: chain.id,
-      tokenAddress: testnetMcUSDC.addressOn(chain.id),
+      tokenAddress,
       amount: amountToSupply
     }
 
@@ -650,7 +654,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
       type: "transfer",
       data: {
         recipient: runtimeTransferAddress as Address,
-        tokenAddress: testnetMcUSDC.addressOn(chain.id),
+        tokenAddress,
         amount: amountToSupply,
         chainId: chain.id
       }
@@ -663,11 +667,12 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
         abi: COMPOSABILITY_RUNTIME_TRANSFER_ABI as Abi,
         functionName: "transferFundsWithString",
         args: [
+          tokenAddress,
           "random_string_this_doesnt_matter",
           [runtimeTransferAddress, eoaAccount.address],
           runtimeERC20BalanceOf({
             targetAddress: runtimeTransferAddress,
-            tokenAddress: testnetMcUSDC.addressOn(chain.id),
+            tokenAddress,
             constraints: [greaterThanOrEqualTo(parseUnits("0.01", 6))] // 6 decimals for USDC
           })
         ],
@@ -681,7 +686,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
         instructions: [transferInstruction, ...instructions],
         feeToken: {
           chainId: chain.id,
-          address: testnetMcUSDC.addressOn(chain.id)
+          address: tokenAddress
         }
       })
     })
@@ -700,7 +705,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
 
     const trigger = {
       chainId: chain.id,
-      tokenAddress: testnetMcUSDC.addressOn(chain.id),
+      tokenAddress,
       amount: amountToSupply
     }
   })
@@ -711,7 +716,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
 
     const trigger = {
       chainId: chain.id,
-      tokenAddress: testnetMcUSDC.addressOn(chain.id),
+      tokenAddress,
       amount: amountToSupply
     }
 
@@ -719,7 +724,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
       type: "transfer",
       data: {
         recipient: runtimeTransferAddress as Address,
-        tokenAddress: testnetMcUSDC.addressOn(chain.id),
+        tokenAddress,
         amount: amountToSupply,
         chainId: chain.id
       }
@@ -732,11 +737,12 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
         abi: COMPOSABILITY_RUNTIME_TRANSFER_ABI as Abi,
         functionName: "transferFundsWithRuntimeParamInsideArray",
         args: [
+          tokenAddress,
           [runtimeTransferAddress, eoaAccount.address],
           [
             runtimeERC20BalanceOf({
               targetAddress: runtimeTransferAddress,
-              tokenAddress: testnetMcUSDC.addressOn(chain.id),
+              tokenAddress,
               constraints: [greaterThanOrEqualTo(parseUnits("0.01", 6))] // 6 decimals for USDC
             })
           ]
@@ -751,7 +757,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
         instructions: [transferInstruction, ...instructions],
         feeToken: {
           chainId: chain.id,
-          address: testnetMcUSDC.addressOn(chain.id)
+          address: tokenAddress
         }
       })
     })
@@ -776,7 +782,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
 
           const trigger = {
             chainId: chain.id,
-            tokenAddress: testnetMcUSDC.addressOn(chain.id),
+            tokenAddress,
             amount: amountToSupply
           }
 
@@ -784,7 +790,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
             type: "transfer",
             data: {
               recipient: runtimeTransferAddress as Address,
-              tokenAddress: testnetMcUSDC.addressOn(chain.id),
+              tokenAddress,
               amount: amountToSupply,
               chainId: chain.id
             },
@@ -798,11 +804,12 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
               abi: COMPOSABILITY_RUNTIME_TRANSFER_ABI as Abi,
               functionName: "transferFundsWithBytes",
               args: [
+                tokenAddress,
                 fromBytes(toBytes("random_string_this_doesnt_matter"), "hex"),
                 [runtimeTransferAddress, eoaAccount.address],
                 runtimeERC20BalanceOf({
                   targetAddress: runtimeTransferAddress,
-                  tokenAddress: testnetMcUSDC.addressOn(chain.id),
+                  tokenAddress,
                   constraints: [greaterThanOrEqualTo(parseUnits("0.01", 6))] // 6 decimals for USDC
                 })
               ],
@@ -817,7 +824,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
               instructions: [transferInstruction, ...instructions],
               feeToken: {
                 chainId: chain.id,
-                address: testnetMcUSDC.addressOn(chain.id)
+                address: tokenAddress
               }
             })
           })
@@ -834,7 +841,8 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
     }
   })
 
-  it("should execute composable transaction for uniswap args", async () => {
+  // This test is skipped because there is no liquidity pool for our new mock token and fusion token
+  it.skip("should execute composable transaction for uniswap args", async () => {
     const fusionToken = getMultichainContract<typeof erc20Abi>({
       abi: erc20Abi,
       deployments: [
@@ -842,7 +850,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
       ]
     })
 
-    const inToken = testnetMcUSDC
+    const inToken = testnetMcTestUSDCP
     const outToken = fusionToken
 
     const amount = parseUnits("0.1", 6)
@@ -919,7 +927,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
 
     const trigger = {
       chainId: chain.id,
-      tokenAddress: testnetMcUSDC.addressOn(chain.id),
+      tokenAddress,
       amount: amount
     }
 
@@ -928,10 +936,10 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
       data: {
         amount: runtimeERC20BalanceOf({
           targetAddress: mcNexus.addressOn(chain.id, true),
-          tokenAddress: testnetMcUSDC.addressOn(chain.id)
+          tokenAddress
         }),
         chainId: chain.id,
-        tokenAddress: testnetMcUSDC.addressOn(chain.id),
+        tokenAddress,
         spender: mcNexus.addressOn(chain.id, true)
       }
     })
@@ -940,10 +948,10 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
       type: "transferFrom",
       data: {
         chainId: chain.id,
-        tokenAddress: testnetMcUSDC.addressOn(chain.id),
+        tokenAddress,
         amount: runtimeERC20BalanceOf({
           targetAddress: mcNexus.addressOn(chain.id, true),
-          tokenAddress: testnetMcUSDC.addressOn(chain.id)
+          tokenAddress
         }),
         sender: mcNexus.addressOn(chain.id, true),
         recipient: eoaAccount.address
@@ -956,7 +964,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
         instructions: [...approval, ...transfer],
         feeToken: {
           chainId: chain.id,
-          address: testnetMcUSDC.addressOn(chain.id)
+          address: tokenAddress
         }
       })
     })
@@ -974,7 +982,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
 
     const trigger = {
       chainId: chain.id,
-      tokenAddress: testnetMcUSDC.addressOn(chain.id),
+      tokenAddress,
       amount: amount
     }
 
@@ -987,7 +995,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
     const approval = await mcNexus.buildComposable({
       type: "rawCalldata",
       data: {
-        to: testnetMcUSDC.addressOn(chain.id),
+        to: tokenAddress,
         calldata: rawCalldata,
         chainId: chain.id
       }
@@ -999,7 +1007,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
         instructions: [...approval],
         feeToken: {
           chainId: chain.id,
-          address: testnetMcUSDC.addressOn(chain.id)
+          address: tokenAddress
         }
       })
     })
@@ -1012,7 +1020,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
     expect(transactionStatus).to.be.eq("MINED_SUCCESS")
 
     const tokenApproval = await publicClient.readContract({
-      address: testnetMcUSDC.addressOn(chain.id),
+      address: tokenAddress,
       abi: erc20Abi,
       functionName: "allowance",
       args: [mcNexus.addressOn(chain.id, true), runtimeTransferAddress]
@@ -1026,7 +1034,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
 
     const trigger = {
       chainId: chain.id,
-      tokenAddress: testnetMcUSDC.addressOn(chain.id),
+      tokenAddress,
       amount: amountToSupply
     }
 
@@ -1034,10 +1042,10 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
       type: "transfer",
       data: {
         recipient: eoaAccount.address,
-        tokenAddress: testnetMcUSDC.addressOn(chain.id),
+        tokenAddress,
         amount: runtimeERC20BalanceOf({
           targetAddress: mcNexus.addressOn(chain.id, true),
-          tokenAddress: testnetMcUSDC.addressOn(chain.id)
+          tokenAddress
         }),
         chainId: chain.id
       }
@@ -1049,7 +1057,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
         instructions: [...transferInstruction],
         feeToken: {
           chainId: chain.id,
-          address: testnetMcUSDC.addressOn(chain.id)
+          address: tokenAddress
         }
       })
     })
@@ -1063,7 +1071,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
     console.log({ explorerLinks, hash })
 
     const nexusUSDCBalance = await publicClient.readContract({
-      address: testnetMcUSDC.addressOn(chain.id),
+      address: tokenAddress,
       abi: erc20Abi,
       functionName: "balanceOf",
       args: [mcNexus.addressOn(chain.id, true)]
@@ -1078,7 +1086,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
 
     const trigger = {
       chainId: chain.id,
-      tokenAddress: testnetMcUSDC.addressOn(chain.id),
+      tokenAddress,
       amount: amountToSupply
     }
 
@@ -1086,7 +1094,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
       type: "transfer",
       data: {
         recipient: runtimeTransferAddress as Address,
-        tokenAddress: testnetMcUSDC.addressOn(chain.id),
+        tokenAddress,
         amount: amountToTransfer,
         chainId: chain.id
       }
@@ -1100,10 +1108,11 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
           abi: COMPOSABILITY_RUNTIME_TRANSFER_ABI as Abi,
           functionName: "transferFunds",
           args: [
+            tokenAddress,
             eoaAccount.address,
             runtimeERC20BalanceOf({
               targetAddress: runtimeTransferAddress,
-              tokenAddress: testnetMcUSDC.addressOn(chain.id)
+              tokenAddress
             })
           ],
           chainId: chain.id
@@ -1114,7 +1123,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
       trigger,
       cleanUps: [
         {
-          tokenAddress: testnetMcUSDC.addressOn(chain.id),
+          tokenAddress,
           chainId: chain.id,
           recipientAddress: eoaAccount.address
         }
@@ -1122,7 +1131,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
       instructions: [...transferInstruction, ...transferFundsInstructions],
       feeToken: {
         chainId: chain.id,
-        address: testnetMcUSDC.addressOn(chain.id)
+        address: tokenAddress
       }
     })
 
@@ -1160,7 +1169,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
 
     const trigger = {
       chainId: chain.id,
-      tokenAddress: testnetMcUSDC.addressOn(chain.id),
+      tokenAddress,
       amount: amountToSupply
     }
 
@@ -1168,7 +1177,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
       type: "transfer",
       data: {
         recipient: eoaAccount.address,
-        tokenAddress: testnetMcUSDC.addressOn(chain.id),
+        tokenAddress,
         amount: amountToTransfer,
         chainId: chain.id
       }
@@ -1178,7 +1187,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
       trigger,
       cleanUps: [
         {
-          tokenAddress: testnetMcUSDC.addressOn(chain.id),
+          tokenAddress,
           chainId: chain.id,
           recipientAddress: eoaAccount.address
         }
@@ -1186,7 +1195,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
       instructions: [...transferInstruction],
       feeToken: {
         chainId: chain.id,
-        address: testnetMcUSDC.addressOn(chain.id)
+        address: tokenAddress
       }
     })
 
@@ -1224,7 +1233,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
 
     const trigger = {
       chainId: chain.id,
-      tokenAddress: testnetMcUSDC.addressOn(chain.id),
+      tokenAddress,
       amount: amountToSupply
     }
 
@@ -1232,7 +1241,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
       type: "transfer",
       data: {
         recipient: eoaAccount.address,
-        tokenAddress: testnetMcUSDC.addressOn(chain.id),
+        tokenAddress,
         amount: amountToTransfer,
         chainId: chain.id
       }
@@ -1242,7 +1251,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
       trigger,
       cleanUps: [
         {
-          tokenAddress: testnetMcUSDC.addressOn(chain.id),
+          tokenAddress,
           chainId: chain.id,
           recipientAddress: eoaAccount.address
         }
@@ -1250,7 +1259,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
       instructions: [...transferInstruction],
       feeToken: {
         chainId: chain.id,
-        address: testnetMcUSDC.addressOn(chain.id)
+        address: tokenAddress
       }
     })
 
@@ -1290,7 +1299,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
     const tx = await mcNexus
       .deploymentOn(chain.id)
       ?.walletClient.writeContract({
-        address: testnetMcUSDC.addressOn(chain.id),
+        address: tokenAddress,
         abi: erc20Abi,
         functionName: "transfer",
         args: [mcNexus.addressOn(chain.id, true), amountToSupply],
@@ -1306,7 +1315,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
       type: "transfer",
       data: {
         recipient: eoaAccount.address,
-        tokenAddress: testnetMcUSDC.addressOn(chain.id),
+        tokenAddress,
         amount: amountToTransfer,
         chainId: chain.id
       }
@@ -1315,7 +1324,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
     const quote = await meeClient.getQuote({
       cleanUps: [
         {
-          tokenAddress: testnetMcUSDC.addressOn(chain.id),
+          tokenAddress,
           chainId: chain.id,
           recipientAddress: eoaAccount.address
         }
@@ -1323,7 +1332,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
       instructions: [...transferInstruction],
       feeToken: {
         chainId: chain.id,
-        address: testnetMcUSDC.addressOn(chain.id)
+        address: tokenAddress
       }
     })
 
@@ -1372,7 +1381,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
 
     const trigger = {
       chainId: chain.id,
-      tokenAddress: testnetMcUSDC.addressOn(chain.id),
+      tokenAddress,
       amount: amountToSupply
     }
 
@@ -1380,7 +1389,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
       type: "transfer",
       data: {
         recipient: eoaAccount.address,
-        tokenAddress: testnetMcUSDC.addressOn(chain.id),
+        tokenAddress,
         amount: amountToTransfer,
         chainId: chain.id
       }
@@ -1390,13 +1399,13 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
       trigger,
       cleanUps: [
         {
-          tokenAddress: testnetMcUSDC.addressOn(chain.id),
+          tokenAddress,
           chainId: chain.id,
           recipientAddress: eoaAccount.address,
           amount: parseUnits("0.01", 6)
         },
         {
-          tokenAddress: testnetMcUSDC.addressOn(chain.id),
+          tokenAddress,
           chainId: chain.id,
           recipientAddress: eoaAccount.address,
           amount: parseUnits("0.01", 6)
@@ -1405,7 +1414,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
       instructions: [...transferInstruction],
       feeToken: {
         chainId: chain.id,
-        address: testnetMcUSDC.addressOn(chain.id)
+        address: tokenAddress
       }
     })
 
@@ -1444,7 +1453,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
     const tx = await mcNexus
       .deploymentOn(chain.id)
       ?.walletClient.writeContract({
-        address: testnetMcUSDC.addressOn(chain.id),
+        address: tokenAddress,
         abi: erc20Abi,
         functionName: "transfer",
         args: [mcNexus.addressOn(chain.id, true), amountToSupply],
@@ -1460,7 +1469,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
       type: "transfer",
       data: {
         recipient: eoaAccount.address,
-        tokenAddress: testnetMcUSDC.addressOn(chain.id),
+        tokenAddress,
         amount: amountToTransfer,
         chainId: chain.id
       }
@@ -1470,7 +1479,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
       type: "transfer",
       data: {
         recipient: eoaAccount.address,
-        tokenAddress: testnetMcUSDC.addressOn(chain.id),
+        tokenAddress,
         amount: amountToTransfer,
         chainId: chain.id
       }
@@ -1480,7 +1489,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
       instructions: [...transferInstructionOne, ...transferInstructionTwo],
       cleanUps: [
         {
-          tokenAddress: testnetMcUSDC.addressOn(chain.id),
+          tokenAddress,
           chainId: chain.id,
           recipientAddress: eoaAccount.address,
           amount: amountToTransfer,
@@ -1489,7 +1498,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
       ],
       feeToken: {
         chainId: chain.id,
-        address: testnetMcUSDC.addressOn(chain.id)
+        address: tokenAddress
       }
     })
 
@@ -1529,7 +1538,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
         type: "transfer",
         data: {
           recipient: eoaAccount.address,
-          tokenAddress: testnetMcUSDC.addressOn(chain.id),
+          tokenAddress,
           amount: amountToSupply,
           chainId: chain.id
         }
@@ -1539,7 +1548,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
         instructions: [...transferInstruction],
         cleanUps: [
           {
-            tokenAddress: testnetMcUSDC.addressOn(chain.id),
+            tokenAddress,
             chainId: chain.id,
             recipientAddress: eoaAccount.address,
             dependsOn: [userOp(1), userOp(2)]
@@ -1547,7 +1556,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
         ],
         feeToken: {
           chainId: chain.id,
-          address: testnetMcUSDC.addressOn(chain.id)
+          address: tokenAddress
         }
       })
     } catch (e) {
@@ -1565,7 +1574,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
         type: "transfer",
         data: {
           recipient: eoaAccount.address,
-          tokenAddress: testnetMcUSDC.addressOn(chain.id),
+          tokenAddress,
           amount: amountToSupply,
           chainId: chain.id
         }
@@ -1575,7 +1584,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
         instructions: [...transferInstruction],
         cleanUps: [
           {
-            tokenAddress: testnetMcUSDC.addressOn(chain.id),
+            tokenAddress,
             chainId: chain.id,
             recipientAddress: eoaAccount.address,
             dependsOn: [userOp(0), userOp(1)]
@@ -1583,7 +1592,7 @@ describe.runIf(runPaidTests)("mee.buildComposable", () => {
         ],
         feeToken: {
           chainId: chain.id,
-          address: testnetMcUSDC.addressOn(chain.id)
+          address: tokenAddress
         }
       })
     } catch (e) {

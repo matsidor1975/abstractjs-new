@@ -21,6 +21,7 @@ import {
   getTestChainConfig,
   toNetwork
 } from "../../../../test/testSetup"
+import { testnetMcTestUSDCP } from "../../../../test/testTokens"
 import {
   type NetworkConfig,
   getAllowance,
@@ -36,7 +37,7 @@ import {
   PERMIT_TYPEHASH,
   TokenWithPermitAbi
 } from "../../../constants"
-import { mcUSDC, testnetMcUSDC } from "../../../constants/tokens"
+import { mcUSDC } from "../../../constants/tokens"
 import { getMEEVersion } from "../../../modules"
 import { type MeeClient, createMeeClient } from "../../createMeeClient"
 import { executeSignedQuote } from "./executeSignedQuote"
@@ -53,7 +54,8 @@ import {
 import waitForSupertransactionReceipt from "./waitForSupertransactionReceipt"
 
 // @ts-ignore
-const { runPaidTests } = inject("settings")
+const { runPaidTests, runLifecycleTests } = inject("settings")
+
 describe("mee.signPermitQuote", () => {
   let network: NetworkConfig
   let eoaAccount: LocalAccount
@@ -224,7 +226,7 @@ describe("mee.signPermitQuote", () => {
   )
 })
 
-describe.runIf(runPaidTests)("mee.signPermitQuote - testnet", () => {
+describe.runIf(runLifecycleTests)("mee.signPermitQuote - testnet", () => {
   let network: NetworkConfig
   let eoaAccount: LocalAccount
 
@@ -267,7 +269,7 @@ describe.runIf(runPaidTests)("mee.signPermitQuote - testnet", () => {
     test("should fail if approvalAmount is smaller than the trigger amount", async () => {
       const amount = parseUnits("0.01", 6)
       const approvalAmount = parseUnits("0.005", 6)
-      const token = testnetMcUSDC.addressOn(network.chain.id)
+      const token = testnetMcTestUSDCP.addressOn(network.chain.id)
       const trigger: Trigger = {
         chainId: network.chain.id,
         tokenAddress: token,
@@ -305,8 +307,7 @@ describe.runIf(runPaidTests)("mee.signPermitQuote - testnet", () => {
       // Define the amount to transfer and the custom approval amount (allowance)
       const amount = parseUnits("0.01", 6)
       const approvalAmount = parseUnits("0.06", 6)
-      const token = testnetMcUSDC.addressOn(chain.id)
-
+      const token = testnetMcTestUSDCP.addressOn(chain.id)
       // Create a wallet client for sending transactions and a public client for reading blockchain state
       const walletClient = createWalletClient({
         account: eoaAccount,
@@ -389,7 +390,7 @@ describe.runIf(runPaidTests)("mee.signPermitQuote - testnet", () => {
     const fusionQuote = await getFusionQuote(meeClient, {
       trigger: {
         chainId: chain.id,
-        tokenAddress: testnetMcUSDC.addressOn(chain.id),
+        tokenAddress: testnetMcTestUSDCP.addressOn(chain.id),
         amount: 1n
       },
       instructions: [
@@ -408,7 +409,7 @@ describe.runIf(runPaidTests)("mee.signPermitQuote - testnet", () => {
       ],
       feeToken: {
         chainId: chain.id,
-        address: testnetMcUSDC.addressOn(chain.id)
+        address: testnetMcTestUSDCP.addressOn(chain.id)
       }
     })
 

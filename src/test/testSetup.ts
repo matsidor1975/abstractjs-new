@@ -6,7 +6,8 @@ import {
   chiliz,
   mainnet,
   optimism,
-  optimismSepolia
+  optimismSepolia,
+  polygon
 } from "viem/chains"
 import { test } from "vitest"
 import {

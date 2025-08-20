@@ -20,7 +20,11 @@ import {
 } from "viem"
 import { mnemonicToAccount, privateKeyToAccount } from "viem/accounts"
 import { baseSepolia, optimismSepolia } from "viem/chains"
-import { getChain, getCustomChain } from "../sdk/account/utils"
+import {
+  getChain,
+  getCustomChain,
+  getMultichainContract
+} from "../sdk/account/utils"
 import { Logger } from "../sdk/account/utils/Logger"
 import type { NexusClient } from "../sdk/clients/createBicoBundlerClient"
 import type { AnyData } from "../sdk/modules/utils/Types"

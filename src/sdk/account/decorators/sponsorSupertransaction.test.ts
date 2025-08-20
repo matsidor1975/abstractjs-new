@@ -1,15 +1,19 @@
 import { http, type Chain, type LocalAccount } from "viem"
 import { generatePrivateKey } from "viem/accounts"
-import { beforeAll, describe, expect, it } from "vitest"
+import { beforeAll, describe, expect, inject, it } from "vitest"
 import { type MultichainSmartAccount, toMultichainNexusAccount } from ".."
 import { toNetwork } from "../../../test/testSetup"
+import { testnetMcTestUSDCP } from "../../../test/testTokens"
 import type { NetworkConfig } from "../../../test/testUtils"
 import { type MeeClient, createMeeClient } from "../../clients/createMeeClient"
-import { DEFAULT_MEE_VERSION, testnetMcUSDC } from "../../constants"
+import { DEFAULT_MEE_VERSION } from "../../constants"
 import { getMEEVersion } from "../../modules"
 import { type GasTankAccount, toGasTankAccount } from "../toGasTankAccount"
 
-describe("mee.sponsorSupertransaction", () => {
+// @ts-ignore
+const { runLifecycleTests } = inject("settings")
+
+describe.runIf(runLifecycleTests)("mee.sponsorSupertransaction", () => {
   let network: NetworkConfig
   let eoaAccount: LocalAccount
 
@@ -70,7 +74,7 @@ describe("mee.sponsorSupertransaction", () => {
       ],
       // This is actually not required for sponsorship request. To mock the singature util, I've added this here
       feeToken: {
-        address: testnetMcUSDC.addressOn(chain.id),
+        address: testnetMcTestUSDCP.addressOn(chain.id),
         chainId: chain.id
       }
     })
