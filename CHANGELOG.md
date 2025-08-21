@@ -1,5 +1,16 @@
 # @biconomy/abstractjs
 
+## 1.1.1
+
+### Patch Changes
+
+- Features included:
+
+  1. Multichain 7702 authorization support.
+  2. Permit fusion mode improvements to cover more permit based tokens
+  3. SDK test case revamp
+  4. More across spoke pools are integration for composable across wrapper
+
 ## 1.1.0
 
 ### Minor Changes
