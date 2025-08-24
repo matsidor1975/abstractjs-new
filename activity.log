@@ -1288,3 +1288,4 @@
 2025-06-30 09:16:03 fix async issue
 2025-01-27 01:16:04 remove deprecated code
 2025-11-22 13:06:03 fix encoding issue
+2025-08-24 17:35:53 simplify logic
