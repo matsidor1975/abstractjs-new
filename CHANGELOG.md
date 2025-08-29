@@ -1,5 +1,11 @@
 # @biconomy/abstractjs
 
+## 1.1.3
+
+### Patch Changes
+
+- Improved the permit token on-chain details fetch with batched multicall for better performance
+
 ## 1.1.2
 
 ### Patch Changes
