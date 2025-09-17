@@ -1,5 +1,15 @@
 # @biconomy/abstractjs
 
+## 1.1.7
+
+### Patch Changes
+
+- Features included:
+
+  1. Native token runtime values are supported
+  2. Native token runtime cleanups are supported
+  3. Custom verification gas limit for smart sessions are supported
+
 ## 1.1.6
 
 ### Patch Changes
