@@ -1278,3 +1278,4 @@
 2025-08-21 08:45:12 update README
 2025-01-16 09:40:12 fix docker build
 2025-07-27 12:23:37 patch vulnerability
+2025-09-19 07:48:22 fix encoding issue
