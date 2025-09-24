@@ -1,5 +1,14 @@
 # @biconomy/abstractjs
 
+## 1.1.8
+
+### Patch Changes
+
+- Patches included:
+
+  1. Fixed Smart session mode usage
+  2. Added a universal policy to support payment token with warning
+
 ## 1.1.7
 
 ### Patch Changes
