@@ -446,6 +446,14 @@ describe("mee.multichainSmartSessions", () => {
             },
             {
               actionTargetSelector: toFunctionSelector(
+                getAbiItem({ abi: erc20Abi, name: "approve" })
+              ),
+              actionPolicies: [getSudoPolicy()],
+              chainId: paymentChain.id,
+              actionTarget: mcUSDC.addressOn(paymentChain.id)
+            },
+            {
+              actionTargetSelector: toFunctionSelector(
                 getAbiItem({ abi: erc20Abi, name: "transfer" })
               ),
               actionPolicies: [uniActionPolicyInfoUSDC],
@@ -500,6 +508,19 @@ describe("mee.multichainSmartSessions", () => {
                 data: toFunctionSelector(
                   getAbiItem({ abi: CounterAbi, name: "decrementNumber" })
                 )
+              }
+            ],
+            chainId: paymentChain.id
+          },
+          {
+            calls: [
+              {
+                to: mcUSDC.addressOn(paymentChain.id),
+                data: encodeFunctionData({
+                  abi: erc20Abi,
+                  functionName: "approve",
+                  args: [redeemerAddress, parseUnits("0.01", 6)]
+                })
               }
             ],
             chainId: paymentChain.id
@@ -574,6 +595,22 @@ describe("mee.multichainSmartSessions", () => {
             },
             {
               actionTargetSelector: toFunctionSelector(
+                getAbiItem({ abi: CounterAbi, name: "decrementNumber" })
+              ),
+              actionPolicies: [getSudoPolicy()],
+              chainId: paymentChain.id,
+              actionTarget: COUNTER_ON_OPTIMISM
+            },
+            {
+              actionTargetSelector: toFunctionSelector(
+                getAbiItem({ abi: erc20Abi, name: "transfer" })
+              ),
+              actionPolicies: [getSudoPolicy()],
+              chainId: paymentChain.id,
+              actionTarget: mcUSDC.addressOn(paymentChain.id)
+            },
+            {
+              actionTargetSelector: toFunctionSelector(
                 getAbiItem({ abi: CounterAbi, name: "incrementNumber" })
               ),
               actionPolicies: [getSudoPolicy()],
@@ -609,19 +646,22 @@ describe("mee.multichainSmartSessions", () => {
 
       const usePermissionPayload = await dappSessionClient.usePermission({
         sponsorship: true,
+        verificationGasLimit: 2_000_000n,
         sessionDetails,
         mode: "ENABLE_AND_USE",
         instructions: [
           {
             calls: [
               {
-                to: COUNTER_ON_BASE,
-                data: toFunctionSelector(
-                  getAbiItem({ abi: CounterAbi, name: "incrementNumber" })
-                )
+                to: mcUSDC.addressOn(paymentChain.id),
+                data: encodeFunctionData({
+                  abi: erc20Abi,
+                  functionName: "transfer",
+                  args: [redeemerAddress, parseUnits("0.001", 6)]
+                })
               }
             ],
-            chainId: targetChain.id
+            chainId: paymentChain.id
           },
           {
             calls: [
@@ -633,6 +673,28 @@ describe("mee.multichainSmartSessions", () => {
               }
             ],
             chainId: paymentChain.id
+          },
+          {
+            calls: [
+              {
+                to: COUNTER_ON_OPTIMISM,
+                data: toFunctionSelector(
+                  getAbiItem({ abi: CounterAbi, name: "decrementNumber" })
+                )
+              }
+            ],
+            chainId: paymentChain.id
+          },
+          {
+            calls: [
+              {
+                to: COUNTER_ON_BASE,
+                data: toFunctionSelector(
+                  getAbiItem({ abi: CounterAbi, name: "incrementNumber" })
+                )
+              }
+            ],
+            chainId: targetChain.id
           }
         ]
       })
