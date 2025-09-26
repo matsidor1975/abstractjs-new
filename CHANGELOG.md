@@ -1,5 +1,11 @@
 # @biconomy/abstractjs
 
+## 1.1.9
+
+### Patch Changes
+
+- Patch: Smart sessions enhancement to have session batching. All the actions will be grouped into one session on the same chain.
+
 ## 1.1.8
 
 ### Patch Changes
