@@ -764,3 +764,4 @@
 2025-06-24 13:40:26 update scripts
 2025-04-27 11:46:29 remove deprecated code
 2025-03-15 06:01:36 update schema migration
+2025-09-27 17:27:16 fix crash issue
