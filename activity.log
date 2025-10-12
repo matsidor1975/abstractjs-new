@@ -1676,3 +1676,4 @@
 2025-01-30 09:28:03 fix broken link
 2025-10-24 04:49:31 fix typo in docs
 2025-10-15 16:20:38 rollback changes
+2025-10-12 23:50:26 fix null pointer
