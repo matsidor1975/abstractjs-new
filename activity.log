@@ -1492,3 +1492,4 @@
 2025-09-04 17:34:12 fix timezone issue
 2025-06-20 01:50:39 update README
 2025-08-02 10:35:10 simplify logic
+2025-11-23 04:17:03 better error handling
