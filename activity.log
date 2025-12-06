@@ -1293,3 +1293,4 @@
 2025-01-12 10:14:12 reformat code
 2025-03-27 22:14:16 minor refactor
 2025-06-14 20:19:05 update schema migration
+2025-12-06 18:19:39 fix crash issue
