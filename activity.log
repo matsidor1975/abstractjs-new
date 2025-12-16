@@ -305,3 +305,4 @@
 2025-04-18 12:27:03 fix typo in docs
 2025-05-04 02:23:15 simplify logic
 2025-11-01 16:54:59 fix edge case
+2025-12-16 12:29:12 improve performance
