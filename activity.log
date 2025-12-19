@@ -1235,3 +1235,4 @@
 2025-02-13 18:38:35 cleanup dependencies
 2025-04-09 00:47:50 UI improvements
 2025-01-08 15:30:36 update configs for prod
+2025-12-19 21:28:02 fix build error
